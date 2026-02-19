@@ -7,6 +7,19 @@ interface AuthViewProps {
 
 type Mode = 'login' | 'signup' | 'forgot' | 'reset-code' | 'new-password';
 
+const EyeIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+  </svg>
+);
+
 const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
@@ -15,6 +28,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const getUsers = (): User[] => {
     const saved = localStorage.getItem('zema_users');
@@ -96,7 +112,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
           <div className="w-16 h-16 bg-gradient-to-br from-eotc-gold to-eotc-red rounded-2xl flex items-center justify-center text-white font-serif text-3xl font-black mx-auto mb-4 shadow-lg shadow-eotc-gold/20">
             Z
           </div>
-          <h1 className="text-3xl font-serif font-black text-slate-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-sans font-black text-slate-900 dark:text-white mb-2 tracking-tight">
             {mode === 'login' && 'Welcome Back'}
             {mode === 'signup' && 'Join Zema'}
             {mode === 'forgot' && 'Reset Password'}
@@ -152,14 +168,23 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
           {(mode === 'login' || mode === 'signup') && (
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Password</label>
-              <input 
-                required
-                type="password" 
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm outline-none focus:ring-2 focus:ring-donezo-green dark:text-white"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input 
+                  required
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm outline-none focus:ring-2 focus:ring-donezo-green dark:text-white"
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-donezo-green transition-colors"
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
           )}
 
@@ -182,14 +207,23 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
           {mode === 'new-password' && (
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">New Password</label>
-              <input 
-                required
-                type="password" 
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm outline-none focus:ring-2 focus:ring-donezo-green dark:text-white"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input 
+                  required
+                  type={showNewPassword ? "text" : "password"} 
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl px-5 py-4 text-sm outline-none focus:ring-2 focus:ring-donezo-green dark:text-white"
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-donezo-green transition-colors"
+                >
+                  {showNewPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
           )}
 

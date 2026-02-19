@@ -1,0 +1,5 @@
+{
+  "name": "EOTC Aququam Audio Library",
+  "description": "An offline-capable Progressive Web App for the Ethiopian Orthodox Tewahedo Church liturgical audio library, featuring liturgical rules engines and sequence management.",
+  "requestFramePermissions": []
+}

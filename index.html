@@ -13,69 +13,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
 
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkVPVEMgQXF1cXVhbSBMaWJyYXJ5IiwKICAic2hvcnRfbmFtZSI6ICJBcXVxdWFtIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMTBiOTgxIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9waWNzdW0ucGhvdG9zLzE5Mi8xOTIiLAogICAgICAic2l6ZXMiOiAxOTJ4MTkyIiwKICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXQp9" />
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              donezo: {
-                green: '#10b981',
-                dark: '#09090b',
-                card: '#ffffff',
-                'card-dark': '#18181b',
-                bg: '#f9fafb'
-              },
-              eotc: {
-                gold: '#d97706',
-                red: '#78350f',
-                cream: '#fffbeb',
-                dark: '#292524'
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'Georgia', 'serif'],
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.3s ease-in-out',
-              'fade-in-up': 'fadeInUp 0.4s ease-out',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      body { transition: background-color 0.3s ease, color 0.3s ease; }
-      .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-      .mt-safe-top { margin-top: env(safe-area-inset-top, 0px); }
-      .scrollbar-hide::-webkit-scrollbar { display: none; }
-      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4"
-  }
-}
-</script>
-</head>
+    <link rel="stylesheet" href="/index.css">
+  </head>
   <body class="bg-donezo-bg dark:bg-donezo-dark text-slate-900 dark:text-slate-100 font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>

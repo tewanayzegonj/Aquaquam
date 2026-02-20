@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Category, CategoryData, DayData, NavItemType } from '../types';
+import { Category, DayData, NavItemType } from '../types';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -11,7 +11,6 @@ interface SidebarProps {
   onEditCategory: (id: string, newName: string) => void;
   onDeleteCategory: (id: string) => void;
   onReorderCategories: (categories: NavItemType[]) => void;
-  db: CategoryData[];
 }
 
 const DashboardIcon = () => (
@@ -30,8 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onAddCategory,
   onEditCategory,
   onDeleteCategory,
-  onReorderCategories,
-  db 
+  onReorderCategories
 }) => {
   // Editing State
   const [isEditing, setIsEditing] = useState(false);
@@ -52,12 +50,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Auto-close states when sidebar collapses/expands
   useEffect(() => {
     if (isCollapsed) {
-      setIsEditing(false);
-      setIsAdding(false);
-      setEditingId(null);
-      setDeleteConfirmId(null);
+      const timer = setTimeout(() => {
+        setIsEditing(false);
+        setIsAdding(false);
+        setEditingId(null);
+        setDeleteConfirmId(null);
+      }, 0);
+      return () => clearTimeout(timer);
     } else {
-      setShowCollapsedAdd(false);
+      const timer = setTimeout(() => setShowCollapsedAdd(false), 0);
+      return () => clearTimeout(timer);
     }
   }, [isCollapsed]);
 
@@ -133,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside 
-      className={`fixed top-0 left-0 z-50 h-full bg-white dark:bg-donezo-card-dark border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72 shadow-2xl'}`}
+      className={`fixed top-0 left-0 z-[60] h-full bg-white dark:bg-donezo-card-dark border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isCollapsed ? '-translate-x-full lg:translate-x-0 lg:w-20' : 'translate-x-0 w-72 shadow-2xl'}`}
     >
       {/* Centered Deletion Dialog */}
       {deleteConfirmId && categoryToDelete && (

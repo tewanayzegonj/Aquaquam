@@ -31,20 +31,50 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [userCount, setUserCount] = useState(0);
 
-  const getUsers = (): User[] => {
-    const saved = localStorage.getItem('zema_users');
-    return saved ? JSON.parse(saved) : [];
+  const getUsers = async (): Promise<User[]> => {
+    let users: User[] = [];
+    try {
+      const response = await fetch('/api/data');
+      if (response.ok) {
+        const data = await response.json();
+        users = data.users || [];
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      const saved = localStorage.getItem('zema_users');
+      users = saved ? JSON.parse(saved) : [];
+    }
+    setUserCount(users.length);
+    return users;
   };
 
-  const saveUsers = (users: User[]) => {
+  const saveUsers = async (users: User[]) => {
     localStorage.setItem('zema_users', JSON.stringify(users));
+    setUserCount(users.length);
+    try {
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users })
+      });
+    } catch (error) {
+      console.error("Failed to save users:", error);
+    }
   };
 
-  const handleAuth = (e: React.FormEvent) => {
+  useEffect(() => {
+    const initUsers = async () => {
+      await getUsers();
+    };
+    initUsers();
+  }, []);
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const users = getUsers();
+    const users = await getUsers();
 
     if (mode === 'login') {
       const user = users.find(u => u.email === email && u.password === password);
@@ -68,9 +98,9 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     }
   };
 
-  const handleForgot = (e: React.FormEvent) => {
+  const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault();
-    const users = getUsers();
+    const users = await getUsers();
     const user = users.find(u => u.email === email);
     if (!user) {
       setError('Email not found.');
@@ -92,13 +122,29 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
     }
   };
 
-  const handleResetPassword = (e: React.FormEvent) => {
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const users = getUsers();
+    const users = await getUsers();
     const updatedUsers = users.map(u => u.email === email ? { ...u, password: newPassword } : u);
-    saveUsers(updatedUsers);
+    await saveUsers(updatedUsers);
     setMode('login');
     setError('Password updated successfully. Please login.');
+  };
+
+  const handleDevLogin = async () => {
+    const devUser: User = {
+      id: 'dev_user',
+      name: 'Developer',
+      email: 'dev@zema.com',
+      password: 'dev'
+    };
+    
+    const users = await getUsers();
+    if (!users.find(u => u.id === devUser.id)) {
+      await saveUsers([...users, devUser]);
+    }
+    
+    onLogin(devUser);
   };
 
   return (
@@ -237,6 +283,16 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
             {mode === 'reset-code' && 'Verify Code'}
             {mode === 'new-password' && 'Update Password'}
           </button>
+          
+          {mode === 'login' && (
+            <button 
+              type="button"
+              onClick={handleDevLogin}
+              className="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-3 rounded-2xl transition-all text-sm"
+            >
+              Sign in as Developer
+            </button>
+          )}
         </form>
 
         <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center space-y-4">
@@ -253,7 +309,7 @@ const AuthView: React.FC<AuthViewProps> = ({ onLogin }) => {
 
         {mode === 'signup' && (
           <p className="mt-6 text-[10px] text-slate-400 text-center font-bold uppercase tracking-widest">
-            {5 - getUsers().length} Slots Remaining
+            {5 - userCount} Slots Remaining
           </p>
         )}
       </div>

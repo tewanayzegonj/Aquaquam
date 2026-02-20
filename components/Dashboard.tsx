@@ -4,74 +4,165 @@ import { Track } from '../types';
 interface DashboardProps {
   currentTrack: Track | null;
   recentlyPlayed: Track[];
+  favorites: Track[];
   onPlay: (track: Track) => void;
+  onToggleFavorite: (track: Track) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, onPlay }) => {
+const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, favorites, onPlay, onToggleFavorite }) => {
+  const recentFive = recentlyPlayed.slice(0, 5);
+  const favoriteTen = favorites.slice(0, 10);
+
   return (
-    <div className="p-6 md:p-10 space-y-12 animate-fade-in pb-32">
-       {/* Top Stats Row - Now only showing Now Playing for a cleaner focal point */}
-       <div className="max-w-5xl">
-          {/* Now Playing Summary */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-8 border border-slate-700 shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow min-h-[160px]">
+    <div className="p-6 md:p-10 space-y-16 animate-fade-in pb-32 max-w-7xl mx-auto">
+       {/* Hero Section: Playing Now */}
+       <section className="relative group">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+              <span className="w-2 h-8 bg-donezo-green rounded-full"></span>
+              Playing Now
+            </h2>
+          </div>
+          
+          <div className="relative bg-slate-900 dark:bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-slate-800 transition-all duration-500 hover:shadow-donezo-green/10">
+             {/* Background Decorative Elements */}
+             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-donezo-green/10 to-transparent pointer-events-none"></div>
+             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-eotc-gold/5 rounded-full blur-3xl pointer-events-none"></div>
+             
              {currentTrack ? (
-                 <>
-                    <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
-                         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full"><path fill="#10b981" d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.5,70.6,31.7C59,41.9,47.1,49.5,35.4,55.3C23.7,61.1,12.2,65.1,-0.6,66.1C-13.4,67.1,-25.5,65.1,-36.8,59.2C-48.1,53.3,-58.6,43.5,-67.6,31.6C-76.6,19.7,-84.1,5.7,-82.9,-7.8C-81.7,-21.3,-71.8,-34.3,-60.7,-43.3C-49.6,-52.3,-37.3,-57.3,-25.1,-65.3C-12.9,-73.3,1.9,-84.3,14.6,-81.8C27.3,-79.3,50.7,-63.3,44.7,-76.4Z" transform="translate(100 100)" /></svg>
-                    </div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                           <span className="px-2 py-1 rounded bg-white/10 text-[10px] font-bold uppercase tracking-widest text-donezo-green backdrop-blur-md">Now Playing</span>
-                           <div className="animate-pulse flex gap-1">
-                               <div className="w-1 h-3 bg-donezo-green rounded-full"></div>
-                               <div className="w-1 h-5 bg-donezo-green rounded-full"></div>
-                               <div className="w-1 h-2 bg-donezo-green rounded-full"></div>
-                           </div>
+                 <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center gap-10">
+                    {/* Large Track Icon/Image */}
+                    <div className="relative flex-shrink-0">
+                        <div className="w-48 h-48 rounded-[2.5rem] bg-gradient-to-br from-donezo-green to-emerald-600 flex items-center justify-center shadow-2xl shadow-donezo-green/30 transform transition-transform group-hover:scale-105 duration-500">
+                           <svg className="w-24 h-24 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                         </div>
-                        <div>
-                           <h2 className="text-3xl font-bold truncate mb-1 tracking-tight">{currentTrack.title}</h2>
-                           <p className="text-slate-400 text-sm truncate font-medium">{currentTrack.category}</p>
-                        </div>
+                        {/* Animated Pulse Rings */}
+                        <div className="absolute inset-0 rounded-[2.5rem] border-2 border-donezo-green animate-ping opacity-20 pointer-events-none"></div>
                     </div>
-                 </>
+
+                    <div className="flex-1 text-center md:text-left min-w-0">
+                       <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                          <span className="px-3 py-1 rounded-full bg-donezo-green text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-donezo-green/20">Active Session</span>
+                          <div className="flex items-end gap-1 h-4">
+                              <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_0.8s_ease-in-out_infinite]"></div>
+                              <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_1.2s_ease-in-out_infinite]"></div>
+                              <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_1s_ease-in-out_infinite]"></div>
+                              <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_0.6s_ease-in-out_infinite]"></div>
+                          </div>
+                       </div>
+                       <h2 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter leading-none truncate">
+                         {currentTrack.title}
+                       </h2>
+                       <p className="text-slate-400 text-xl font-medium tracking-tight mb-8">
+                         {currentTrack.category} • Ethiopian Orthodox Liturgy
+                       </p>
+                       
+                       <div className="flex items-center justify-center md:justify-start gap-4">
+                          <button 
+                            onClick={() => onToggleFavorite(currentTrack)}
+                            className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-bold transition-all transform active:scale-95 ${
+                              favorites.find(f => f.id === currentTrack.id) 
+                                ? 'bg-donezo-green text-white shadow-lg shadow-donezo-green/20' 
+                                : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
+                            }`}
+                          >
+                             <svg className="w-6 h-6" fill={favorites.find(f => f.id === currentTrack.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                             </svg>
+                             {favorites.find(f => f.id === currentTrack.id) ? 'Saved to Favorites' : 'Add to Favorites'}
+                          </button>
+                       </div>
+                    </div>
+                 </div>
              ) : (
-                 <div className="flex flex-col items-center justify-center h-full text-slate-500 opacity-50 pt-4">
-                     <p className="font-bold uppercase tracking-widest text-xs">Not Playing</p>
-                     <p className="text-[10px]">Select a track to start</p>
+                 <div className="p-20 flex flex-col items-center justify-center text-center">
+                     <div className="w-24 h-24 rounded-3xl bg-slate-800 flex items-center justify-center mb-6 text-slate-600">
+                        <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                     </div>
+                     <h3 className="text-2xl font-bold text-white mb-2">Silence is Golden</h3>
+                     <p className="text-slate-500 max-w-xs mx-auto">Select a sacred melody from your library to begin your spiritual journey.</p>
                  </div>
              )}
           </div>
-       </div>
+       </section>
 
-       {/* Recently Played */}
-       <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Recently Played</h2>
-          </div>
-          
-          {recentlyPlayed.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {recentlyPlayed.map((track, idx) => (
-                      <div 
-                        key={`${track.id}-${idx}`}
-                        onClick={() => onPlay(track)}
-                        className="group bg-white dark:bg-donezo-card-dark p-5 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-donezo-green hover:shadow-xl hover:shadow-donezo-green/5 transition-all cursor-pointer flex items-center gap-4"
-                      >
-                          <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-donezo-green group-hover:text-white transition-all flex-shrink-0">
-                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                          </div>
-                          <div className="min-w-0">
-                              <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm tracking-tight">{track.title}</h4>
-                              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider truncate">{track.category}</p>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          ) : (
-              <div className="p-12 text-center bg-white dark:bg-donezo-card-dark rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-800">
-                  <p className="text-slate-400 text-sm font-medium">Your recently played tracks will appear here.</p>
-              </div>
-          )}
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Favorites Section - Left 2/3 */}
+          <section className="lg:col-span-2 space-y-8">
+             <div className="flex items-center justify-between">
+               <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Favorites</h2>
+               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{favorites.length} Tracks</span>
+             </div>
+             
+             {favoriteTen.length > 0 ? (
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                     {favoriteTen.map((track) => (
+                         <div 
+                           key={`fav-${track.id}`}
+                           onClick={() => onPlay(track)}
+                           className="group bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 hover:border-donezo-green hover:shadow-2xl hover:shadow-donezo-green/5 transition-all cursor-pointer flex items-center gap-6"
+                         >
+                             <div className="w-20 h-20 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-donezo-green group-hover:text-white transition-all flex-shrink-0 shadow-inner">
+                                <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                             </div>
+                             <div className="min-w-0 flex-1">
+                                 <h4 className="font-bold text-slate-900 dark:text-white truncate text-lg tracking-tight mb-1">{track.title}</h4>
+                                 <p className="text-xs text-slate-400 uppercase font-black tracking-widest truncate">{track.category}</p>
+                             </div>
+                             
+                             <button 
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 onToggleFavorite(track);
+                               }}
+                               className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 text-donezo-green hover:bg-donezo-green hover:text-white transition-all shadow-sm"
+                             >
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                             </button>
+                         </div>
+                     ))}
+                 </div>
+             ) : (
+                 <div className="p-16 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+                     <p className="text-slate-400 font-medium">Your heart list is empty. Add tracks to see them here.</p>
+                 </div>
+             )}
+          </section>
+
+          {/* Recently Played - Right 1/3 */}
+          <section className="space-y-8">
+             <div className="flex items-center justify-between">
+               <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Recent</h2>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">History</span>
+             </div>
+             
+             {recentFive.length > 0 ? (
+                 <div className="space-y-4">
+                     {recentFive.map((track, idx) => (
+                         <div 
+                           key={`recent-${track.id}-${idx}`}
+                           onClick={() => onPlay(track)}
+                           className="group bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-donezo-green hover:shadow-xl transition-all cursor-pointer flex items-center gap-4"
+                         >
+                             <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-donezo-green group-hover:text-white transition-all flex-shrink-0 font-black text-xs">
+                                {idx + 1}
+                             </div>
+                             <div className="flex-1 min-w-0">
+                                 <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm tracking-tight">{track.title}</h4>
+                                 <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">{track.category}</p>
+                             </div>
+                             <div className="text-slate-300 group-hover:text-donezo-green transition-colors">
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                             </div>
+                         </div>
+                     ))}
+                 </div>
+             ) : (
+                 <div className="p-12 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800">
+                     <p className="text-slate-400 text-sm font-medium">No history yet.</p>
+                 </div>
+             )}
+          </section>
        </div>
     </div>
   );

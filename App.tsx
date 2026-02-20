@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_DB, DEFAULT_CATEGORIES } from './constants';
-import { Category, DayData, ServiceSection, Track, NavItemType, LibraryItem, User } from './types';
+import { Category, DayData, Track, NavItemType, LibraryItem, User } from './types';
 import AudioPlayer from './components/AudioPlayer.tsx';
 import Sidebar from './components/Sidebar.tsx';
 import Header from './components/Header.tsx';
@@ -48,6 +48,48 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [favorites, setFavorites] = useState<Track[]>(() => {
+    const saved = localStorage.getItem('eotc_favorites');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Initial load from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/data');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.categories && data.categories.length > 0) setCategories(data.categories);
+          if (data.libraryItems) setLibraryItems(data.libraryItems);
+          if (data.favorites) setFavorites(data.favorites);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data from backend:", error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Sync to backend
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories, libraryItems, favorites })
+        });
+      } catch (error) {
+        console.error("Failed to sync data to backend:", error);
+      }
+    };
+    
+    // Debounce sync
+    const timer = setTimeout(syncData, 1000);
+    return () => clearTimeout(timer);
+  }, [categories, libraryItems, favorites]);
+
   useEffect(() => {
     localStorage.setItem('eotc_categories', JSON.stringify(categories));
   }, [categories]);
@@ -59,6 +101,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('eotc_recent', JSON.stringify(recentlyPlayed));
   }, [recentlyPlayed]);
+
+  useEffect(() => {
+    localStorage.setItem('eotc_favorites', JSON.stringify(favorites));
+  }, [favorites]);
 
   useEffect(() => {
     localStorage.setItem('eotc_theme', JSON.stringify(isDarkMode));
@@ -93,6 +139,17 @@ const App: React.FC = () => {
   const handleClosePlayer = () => {
     setIsPlaying(false);
     setCurrentTrack(null);
+  };
+
+  const toggleFavorite = (track: Track) => {
+    setFavorites(prev => {
+      const isFav = prev.find(t => t.id === track.id);
+      if (isFav) {
+        return prev.filter(t => t.id !== track.id);
+      } else {
+        return [track, ...prev];
+      }
+    });
   };
 
   const handleAddCategory = (name: string) => {
@@ -168,7 +225,9 @@ const App: React.FC = () => {
         <Dashboard 
           currentTrack={currentTrack}
           recentlyPlayed={recentlyPlayed}
+          favorites={favorites}
           onPlay={handlePlayTrack}
+          onToggleFavorite={toggleFavorite}
         />
       );
     }
@@ -192,7 +251,7 @@ const App: React.FC = () => {
       
       {!isSidebarCollapsed && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[55] transition-opacity animate-fade-in"
           onClick={() => setIsSidebarCollapsed(true)}
         />
       )}
@@ -213,7 +272,7 @@ const App: React.FC = () => {
         db={MOCK_DB}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 ml-20 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-20 transition-all duration-300">
         <Header 
           currentUser={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}

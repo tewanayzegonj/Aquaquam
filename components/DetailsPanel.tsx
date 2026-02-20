@@ -6,6 +6,23 @@ interface DetailsPanelProps {
 }
 
 const DetailsPanel: React.FC<DetailsPanelProps> = ({ track }) => {
+  // Helper: Format Bytes to human readable string
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return 'Unknown Size';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 B';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  // Helper: Format Duration (seconds) to MM:SS
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return 'Unknown';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   if (!track) {
     return (
       <aside className="hidden lg:flex w-80 bg-white dark:bg-donezo-card-dark border-l border-slate-200 dark:border-slate-800 flex-col flex-shrink-0 h-full p-8 items-center justify-center text-center text-slate-400">
@@ -34,7 +51,7 @@ const DetailsPanel: React.FC<DetailsPanelProps> = ({ track }) => {
             <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
           </div>
           <h3 className="text-lg font-serif font-bold text-donezo-green mb-1">{track.title}</h3>
-          <p className="text-xs text-slate-400 mb-4">1.2 MB • 1 Performance</p>
+          <p className="text-xs text-slate-400 mb-4">{formatSize(track.size)} • {formatDuration(track.duration)}</p>
           
           <div className="space-y-4">
             <div>

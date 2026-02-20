@@ -16,6 +16,15 @@ const TrackTable: React.FC<TrackTableProps> = ({ tracks, currentTrackId, onPlay,
     );
   };
 
+  // Helper: Format Bytes
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return '';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 B';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
   return (
     <div className="w-full overflow-x-auto">
       <table className="w-full border-collapse">
@@ -45,7 +54,7 @@ const TrackTable: React.FC<TrackTableProps> = ({ tracks, currentTrackId, onPlay,
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className={`text-sm font-bold truncate ${isPlaying ? 'text-donezo-green' : 'text-slate-900 dark:text-white'}`}>{track.title}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">mp3 • {track.merigeta_metadata.regional_school || "Gonder School"}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">mp3 • {formatSize(track.size)} • {track.merigeta_metadata.regional_school || "Gonder School"}</span>
                   </div>
                 </td>
                 <td className="px-6 py-5">

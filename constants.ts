@@ -1,3 +1,4 @@
+
 import { CategoryData, PerformanceType, LiturgicalCategory, Track, DayData } from './types';
 
 export const DEFAULT_CATEGORIES = [
@@ -28,7 +29,9 @@ const createTrack = (
     regional_school: "Gonder",
     tempo: "Moderate",
     author: "Saint Yared"
-  }
+  },
+  size: Math.floor(Math.random() * 3000000) + 1000000, // Random size between 1MB and 4MB
+  duration: Math.floor(Math.random() * 240) + 60 // Random duration between 1 and 5 minutes
 });
 
 const generateDay = (dayNum: number, name: string): DayData => {

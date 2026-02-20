@@ -8,384 +8,309 @@ interface AudioPlayerProps {
   onClose: () => void;
 }
 
+interface ExtendedAudioElement extends HTMLAudioElement {
+  mozPreservesPitch?: boolean;
+  webkitPreservesPitch?: boolean;
+}
+
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTogglePlay, onClose }) => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<ExtendedAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
   
-  // Player UI State
+  // UI State
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
   
+  // Player Settings / State
+  const [seekAmount] = useState(10);
+
   // DSP State
-  const [tempo, setTempo] = useState(100); 
-  const [pitch, setPitch] = useState(0);   
-  const [loopA, setLoopA] = useState<number | null>(null);
-  const [loopB, setLoopB] = useState<number | null>(null);
+  const [tempo] = useState(100); 
+  const [pitch] = useState(0);   
   
   // Interaction State
   const [isScrubbing, setIsScrubbing] = useState(false);
-  const lastXRef = useRef<number>(0);
+  const [scrubValue, setScrubValue] = useState(0);
 
-  // --- AUDIO LOGIC ---
-
+  // Generate consistent waveform data
   const waveformData = useMemo(() => {
     if (!currentTrack) return [];
     const bars = [];
-    for (let i = 0; i < 3000; i++) {
-        const envelope = Math.sin(i * 0.005) * 0.5 + 0.5; 
-        const beat = Math.pow(Math.sin(i * 0.05), 5);
-        const noise = Math.random() * 0.15;
-        const val = Math.max(0.05, (envelope * 0.6 + beat * 0.4 + noise) * 0.8);
+    const totalBars = 200; 
+    for (let i = 0; i < totalBars; i++) {
+        // Perlin-ish noise for visual
+        const x = i / 8;
+        const base = Math.sin(x) * 0.5 + 0.5;
+        const noise = Math.random() * 0.5;
+        const val = Math.max(0.1, (base + noise) * 0.7);
         bars.push(val);
     }
     return bars;
   }, [currentTrack]);
 
-  const handleTimeUpdate = () => {
-    if (!audioRef.current || isScrubbing) return;
-    const curr = audioRef.current.currentTime;
-    
-    if (loopA !== null && loopB !== null && loopB > loopA) {
-      if (curr >= loopB) {
-        audioRef.current.currentTime = loopA;
-        setCurrentTime(loopA);
-        return; 
-      }
-    }
-    setCurrentTime(curr);
-    if (!isNaN(audioRef.current.duration)) {
-        setDuration(audioRef.current.duration);
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current && !isNaN(audioRef.current.duration)) {
-      setDuration(audioRef.current.duration);
-      if (isPlaying) {
-          audioRef.current.play().catch(e => console.error("Playback blocked", e));
-      }
-    }
-  };
-
+  // Handle Play/Pause
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlaying) {
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(e => console.log("Playback error:", e));
     } else {
         audioRef.current.pause();
     }
   }, [isPlaying, currentTrack]);
 
+  // Handle DSP (Tempo/Pitch)
   useEffect(() => {
-    if (!audioRef.current) return;
-    audioRef.current.playbackRate = tempo / 100;
-  }, [tempo]);
+    const audio = audioRef.current;
+    if (!audio) return;
 
-  const drawWaveform = useCallback(() => {
+    let rate = 1.0;
+    let shouldPreservePitch = true;
+
+    if (pitch !== 0) {
+        rate = Math.pow(2, pitch / 12);
+        shouldPreservePitch = false; 
+    } else {
+        rate = tempo / 100;
+        shouldPreservePitch = true;
+    }
+
+    audio.playbackRate = Math.max(0.0625, Math.min(16, rate));
+
+    if ('preservesPitch' in audio) {
+        (audio as any).preservesPitch = shouldPreservePitch;
+    } else if (audio.mozPreservesPitch !== undefined) {
+        audio.mozPreservesPitch = shouldPreservePitch;
+    } else if (audio.webkitPreservesPitch !== undefined) {
+        audio.webkitPreservesPitch = shouldPreservePitch;
+    }
+
+  }, [tempo, pitch]);
+
+  const handleTimeUpdate = () => {
+    if (!audioRef.current) return;
+    const t = audioRef.current.currentTime;
+    setCurrentTime(t);
+    if (!isScrubbing) {
+        setScrubValue(t);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+        setDuration(audioRef.current.duration);
+        if (isPlaying) audioRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setScrubValue(Number(e.target.value));
+  };
+
+  const handleSeekStart = () => setIsScrubbing(true);
+  
+  const handleSeekEnd = () => {
+      if (audioRef.current) {
+          audioRef.current.currentTime = scrubValue;
+      }
+      setIsScrubbing(false);
+  };
+
+  const skipForward = () => {
+      if (audioRef.current) audioRef.current.currentTime = Math.min(duration, currentTime + seekAmount);
+  };
+
+  const skipBackward = () => {
+      if (audioRef.current) audioRef.current.currentTime = Math.max(0, currentTime - seekAmount);
+  };
+
+  // Scrolling Waveform Animation
+  const tick = useCallback(() => {
+    if (!canvasRef.current) {
+        return;
+    }
+
     const canvas = canvasRef.current;
-    if (!canvas || !currentTrack || !isExpanded) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-    }
-
-    const width = rect.width;
-    const height = rect.height;
-    const centerY = height / 2;
-    const barWidth = 2; 
-    const barGap = 1;   
-    const totalBarWidth = barWidth + barGap;
-    const colorPlayed = '#2dd4bf'; 
-    const colorUnplayed = '#334155'; 
-    const colorCenterLine = '#ffffff';
-
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear
     ctx.clearRect(0, 0, width, height);
+    
+    // Config
+    const barWidth = 4;
+    const totalBarWidth = barWidth + 2; // gap = 2
+    
+    // Calculate scroll offset based on time
+    const centerX = width / 2;
+    const progress = duration > 0 ? currentTime / duration : 0;
+    const totalWaveWidth = waveformData.length * totalBarWidth;
+    const pixelsPlayed = progress * totalWaveWidth;
+    const offsetX = centerX - pixelsPlayed;
 
-    let effectiveTime = currentTime;
-    if (isPlaying && audioRef.current && !isScrubbing) {
-        effectiveTime = audioRef.current.currentTime;
-    }
+    ctx.save();
+    ctx.translate(offsetX, 0);
 
-    const durationSafe = duration || 1;
-    const totalBars = waveformData.length;
-    const centerIndex = (effectiveTime / durationSafe) * totalBars;
-    const centerScreenX = width / 2;
+    waveformData.forEach((val, i) => {
+        const x = i * totalBarWidth;
+        if (x + offsetX < -50 || x + offsetX > width + 50) return;
 
-    const maxVisibleBars = Math.ceil(width / totalBarWidth) + 4;
-    const startDrawIndex = Math.max(0, Math.floor(centerIndex - maxVisibleBars / 2));
-    const endDrawIndex = Math.min(totalBars, Math.ceil(centerIndex + maxVisibleBars / 2));
+        const barHeight = val * (height * 0.8);
+        const y = (height - barHeight) / 2;
+        const isPlayed = x < pixelsPlayed;
 
-    for (let i = startDrawIndex; i < endDrawIndex; i++) {
-        const val = waveformData[i];
-        const barHeight = val * (height * 0.7);
-        const x = centerScreenX + (i - centerIndex) * totalBarWidth;
-        ctx.fillStyle = (x < centerScreenX) ? colorPlayed : colorUnplayed;
-        const radius = barWidth / 2;
-        const y = centerY - barHeight / 2;
+        ctx.fillStyle = isPlayed ? '#10b981' : 'rgba(255,255,255, 0.2)';
         
         ctx.beginPath();
         if (ctx.roundRect) {
-            ctx.roundRect(x, y, barWidth, barHeight, radius);
+            ctx.roundRect(x, y, barWidth, barHeight, 2);
         } else {
             ctx.rect(x, y, barWidth, barHeight);
         }
         ctx.fill();
-    }
+    });
 
-    ctx.strokeStyle = colorCenterLine;
-    ctx.lineWidth = 2;
+    ctx.restore();
+
+    // Draw Center Line (Playhead)
     ctx.beginPath();
-    ctx.moveTo(centerScreenX, centerY - 50);
-    ctx.lineTo(centerScreenX, centerY + 50);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.moveTo(centerX, 10);
+    ctx.lineTo(centerX, height - 10);
     ctx.stroke();
 
-    if (loopA !== null && duration > 0) {
-       const loopAIndex = (loopA / duration) * totalBars;
-       const xA = centerScreenX + (loopAIndex - centerIndex) * totalBarWidth;
-       if (loopB !== null) {
-          const loopBIndex = (loopB / duration) * totalBars;
-          const xB = centerScreenX + (loopBIndex - centerIndex) * totalBarWidth;
-          ctx.fillStyle = 'rgba(45, 212, 191, 0.15)';
-          ctx.fillRect(xA, 0, xB - xA, height);
-          ctx.strokeStyle = '#fcd34d'; 
-          ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.moveTo(xB, 0); ctx.lineTo(xB, height); ctx.stroke();
-          ctx.fillStyle = '#fcd34d'; ctx.font = 'bold 10px monospace'; ctx.fillText('B', xB + 4, 15);
-       }
-       ctx.strokeStyle = '#2dd4bf'; 
-       ctx.lineWidth = 2;
-       ctx.beginPath(); ctx.moveTo(xA, 0); ctx.lineTo(xA, height); ctx.stroke();
-       ctx.fillStyle = '#2dd4bf'; ctx.font = 'bold 10px monospace'; ctx.fillText('A', xA - 12, 15);
-    }
+    // Gradient fade edges
+    const gradientLeft = ctx.createLinearGradient(0, 0, 40, 0);
+    gradientLeft.addColorStop(0, 'rgba(2,6,23, 1)'); // match bg-slate-950
+    gradientLeft.addColorStop(1, 'rgba(2,6,23, 0)');
+    ctx.fillStyle = gradientLeft;
+    ctx.fillRect(0, 0, 40, height);
 
-  }, [waveformData, currentTrack, currentTime, duration, isPlaying, isScrubbing, loopA, loopB, isExpanded]);
+    const gradientRight = ctx.createLinearGradient(width - 40, 0, width, 0);
+    gradientRight.addColorStop(0, 'rgba(2,6,23, 0)');
+    gradientRight.addColorStop(1, 'rgba(2,6,23, 1)');
+    ctx.fillStyle = gradientRight;
+    ctx.fillRect(width - 40, 0, 40, height);
+
+    animationRef.current = requestAnimationFrame(tick);
+  }, [currentTime, duration, waveformData]);
 
   useEffect(() => {
-    const loop = () => {
-        if (isExpanded) drawWaveform();
-        animationRef.current = requestAnimationFrame(loop);
-    };
-    loop();
+    if (isExpanded) {
+        animationRef.current = requestAnimationFrame(tick);
+    }
     return () => {
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [drawWaveform, isExpanded]);
-
-  const handleTempoChange = (val: number) => setTempo(Math.min(200, Math.max(50, val)));
-  const handlePitchChange = (val: number) => setPitch(Math.min(12, Math.max(-12, val)));
-
-  const toggleLoopA = () => {
-    if (loopA === null) {
-        if (loopB !== null && currentTime >= loopB) setLoopB(null);
-        setLoopA(currentTime);
-    } else setLoopA(null);
-  }
-
-  const toggleLoopB = () => {
-    if (loopB === null) {
-        if (loopA !== null && currentTime > loopA) setLoopB(currentTime);
-        else if (loopA === null) setLoopB(currentTime);
-    } else setLoopB(null);
-  }
-
-  const handleSeek = (val: number) => {
-      const safeVal = Math.min(Math.max(0, val), duration || 100);
-      setCurrentTime(safeVal);
-      if (audioRef.current) audioRef.current.currentTime = safeVal;
-  }
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-      setIsScrubbing(true);
-      lastXRef.current = e.clientX;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-      if (!isScrubbing || !duration) return;
-      const deltaX = e.clientX - lastXRef.current;
-      lastXRef.current = e.clientX;
-      const totalBarWidth = 3; 
-      const barsMoved = -deltaX / totalBarWidth; 
-      const timeDelta = (barsMoved / waveformData.length) * duration;
-      let newTime = currentTime + timeDelta;
-      newTime = Math.max(0, Math.min(newTime, duration));
-      setCurrentTime(newTime);
-      if (audioRef.current) audioRef.current.currentTime = newTime;
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-      setIsScrubbing(false);
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  const formatTime = (t: number) => {
-    if (isNaN(t)) return "0:00";
-    const mins = Math.floor(t / 60);
-    const secs = Math.floor(t % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [isExpanded, tick]);
 
   if (!currentTrack) return null;
 
   return (
-    <>
-      {/* PERSISTENT AUDIO ELEMENT - Never unmounted */}
-      <audio
-          ref={audioRef}
-          src={currentTrack.audio_url}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onEnded={() => onTogglePlay()}
+    <div className={`fixed bottom-0 left-0 right-0 bg-slate-950 text-white border-t border-slate-800 transition-all duration-500 z-50 ${isExpanded ? 'h-96' : 'h-24'}`}>
+      
+      {/* Expanded View Content (Waveform) */}
+      <div className={`absolute inset-x-0 top-0 bottom-24 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <canvas 
+            ref={canvasRef} 
+            width={window.innerWidth} 
+            height={280}
+            className="w-full h-full block"
+          />
+          {/* Close Expand Button */}
+          <button 
+             onClick={() => setIsExpanded(false)}
+             className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20"
+          >
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+          </button>
+      </div>
+
+      {/* Main Bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800 flex items-center justify-between px-6 z-10">
+        
+        {/* Track Info */}
+        <div className="flex items-center gap-4 w-1/4 min-w-[200px]">
+           <div className="w-14 h-14 bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 flex-shrink-0">
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+           </div>
+           <div className="min-w-0">
+               <h3 className="font-bold text-sm truncate">{currentTrack.title}</h3>
+               <p className="text-xs text-slate-400 truncate">{currentTrack.category}</p>
+           </div>
+        </div>
+
+        {/* Controls */}
+        <div className="flex flex-col items-center flex-1 max-w-xl">
+           <div className="flex items-center gap-6 mb-2">
+               <button onClick={skipBackward} className="text-slate-400 hover:text-white transition-colors">
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+               </button>
+               <button 
+                  onClick={onTogglePlay}
+                  className="w-12 h-12 bg-white text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-white/10"
+               >
+                   {isPlaying ? (
+                       <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                   ) : (
+                       <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                   )}
+               </button>
+               <button onClick={skipForward} className="text-slate-400 hover:text-white transition-colors">
+                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" /></svg>
+               </button>
+           </div>
+           
+           <div className="w-full flex items-center gap-3 text-xs text-slate-400 font-mono">
+               <span>{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span>
+               <input 
+                  type="range" 
+                  min={0} 
+                  max={duration || 100} 
+                  value={isScrubbing ? scrubValue : currentTime}
+                  onChange={handleSeekChange}
+                  onMouseDown={handleSeekStart}
+                  onMouseUp={handleSeekEnd}
+                  onTouchStart={handleSeekStart}
+                  onTouchEnd={handleSeekEnd}
+                  className="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+               />
+               <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
+           </div>
+        </div>
+
+        {/* Extra Actions */}
+        <div className="w-1/4 flex justify-end items-center gap-4">
+            <button 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className={`p-2 rounded-lg transition-colors ${isExpanded ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400 hover:text-white'}`}
+                title="Visualizer"
+            >
+               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 3-2 3 2zm0 0v-8" /></svg>
+            </button>
+            <button 
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+                title="Close Player"
+            >
+               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+      </div>
+
+      <audio 
+         ref={audioRef}
+         src={currentTrack.audio_url}
+         onTimeUpdate={handleTimeUpdate}
+         onLoadedMetadata={handleLoadedMetadata}
+         onEnded={() => {}}
       />
-
-      {/* MINIMIZED PLAYER UI */}
-      {!isExpanded && (
-        <div 
-            className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur-xl border-t border-white/10 shadow-2xl z-50 h-[84px] pb-safe cursor-pointer transition-all animate-fade-in"
-            onClick={() => setIsExpanded(true)}
-        >
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-slate-800">
-                <div className="h-full bg-teal-400" style={{ width: `${(currentTime / (duration || 1)) * 100}%` }} />
-            </div>
-
-            <div className="flex items-center justify-between px-4 h-full">
-                <div className="flex items-center gap-4 overflow-hidden">
-                     <div className="w-12 h-12 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-400 flex-shrink-0">
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v9.28c-.47-.17-.97-.28-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
-                    </div>
-                    <div className="min-w-0">
-                        <h4 className="font-bold text-base text-white truncate">{currentTrack.title}</h4>
-                        <p className="text-sm text-slate-400 truncate">{currentTrack.category}</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onTogglePlay(); }}
-                        className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-transform"
-                    >
-                        {isPlaying ? (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                        ) : (
-                            <svg className="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                        )}
-                    </button>
-                    <button 
-                         onClick={(e) => { e.stopPropagation(); onClose(); }}
-                         className="w-8 h-8 rounded-full bg-white/10 text-slate-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
-                    >
-                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {/* MAXIMIZED PLAYER UI */}
-      {isExpanded && (
-        <div className="fixed inset-0 z-[100] bg-[#020617] text-white flex flex-col animate-fade-in-up">
-            <div className="flex items-center justify-between px-6 py-6 pt-safe">
-                <button 
-                    onClick={() => setIsExpanded(false)}
-                    className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full active:bg-white/10 text-slate-400 hover:text-white"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                </button>
-                <div className="text-center">
-                    <h1 className="text-lg font-bold text-white truncate max-w-[200px]">{currentTrack.title}</h1>
-                    <p className="text-xs text-teal-400 font-medium tracking-wide uppercase">{currentTrack.category}</p>
-                </div>
-                <button 
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="w-10 h-10 -mr-2 flex items-center justify-center rounded-full active:bg-white/10 text-slate-400 hover:text-white"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                </button>
-            </div>
-
-            <div className="px-6 space-y-6 mt-2">
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium text-sm">Tempo</span>
-                        <div className="flex items-center gap-3">
-                            <span className="text-teal-400 font-mono font-bold text-sm">{tempo}%</span>
-                            <button onClick={() => setTempo(100)} className="text-slate-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg></button>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => handleTempoChange(tempo - 1)} className="w-8 h-8 rounded-full bg-slate-800 text-teal-400 flex items-center justify-center hover:bg-slate-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg></button>
-                        <input type="range" min="50" max="150" value={tempo} onChange={(e) => setTempo(Number(e.target.value))} className="flex-1 h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-teal-400" />
-                        <button onClick={() => handleTempoChange(tempo + 1)} className="w-8 h-8 rounded-full bg-slate-800 text-teal-400 flex items-center justify-center hover:bg-slate-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg></button>
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-slate-400 font-medium text-sm">Pitch</span>
-                        <div className="flex items-center gap-3">
-                            <span className="text-teal-400 font-mono font-bold text-sm">{pitch > 0 ? '+' : ''}{pitch.toFixed(2)}</span>
-                            <button onClick={() => setPitch(0)} className="text-slate-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg></button>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => handlePitchChange(pitch - 0.1)} className="w-8 h-8 rounded-full bg-slate-800 text-teal-400 flex items-center justify-center hover:bg-slate-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg></button>
-                        <input type="range" min="-12" max="12" step="0.1" value={pitch} onChange={(e) => setPitch(Number(e.target.value))} className="flex-1 h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-teal-400" />
-                        <button onClick={() => handlePitchChange(pitch + 0.1)} className="w-8 h-8 rounded-full bg-slate-800 text-teal-400 flex items-center justify-center hover:bg-slate-700"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg></button>
-                    </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                    <span className="text-slate-400 font-medium text-sm">Loop</span>
-                    <div className="flex items-center gap-4">
-                         <button onClick={toggleLoopA} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all border ${loopA !== null ? 'bg-teal-400 border-teal-400 text-black shadow-[0_0_15px_rgba(45,212,191,0.5)]' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>A</button>
-                         <button onClick={toggleLoopB} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all border ${loopB !== null ? 'bg-amber-400 border-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.5)]' : 'border-slate-700 text-slate-400 hover:border-slate-500'}`}>B</button>
-                         <button onClick={() => { setLoopA(null); setLoopB(null); }} disabled={loopA === null && loopB === null} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:text-white disabled:opacity-30"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex-1 w-full relative py-4 flex flex-col justify-center overflow-hidden">
-                 <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10 z-0"></div>
-                 <canvas 
-                    ref={canvasRef}
-                    className="w-full h-48 md:h-64 cursor-grab active:cursor-grabbing touch-none relative z-10"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerLeave={handlePointerUp}
-                 />
-            </div>
-
-            <div className="px-6 pb-12 pt-4 bg-gradient-to-t from-[#020617] via-[#020617] to-transparent">
-                 <div className="mb-8 flex justify-between items-end px-1">
-                     <div className="text-3xl font-mono font-bold text-white tracking-tighter">{formatTime(currentTime)}</div>
-                     <div className="text-sm font-mono font-medium text-slate-500 mb-1">-{formatTime(duration - currentTime)}</div>
-                 </div>
-
-                 <div className="flex items-center justify-between">
-                    <button className="text-slate-500 hover:text-teal-400 transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
-                    <div className="flex items-center gap-8">
-                        <button onClick={() => handleSeek(currentTime - 15)} className="text-white hover:text-teal-400 transition-colors active:scale-95"><svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg></button>
-                        <button onClick={onTogglePlay} className="w-20 h-20 rounded-full bg-teal-400 text-[#020617] flex items-center justify-center hover:scale-105 shadow-[0_0_30px_rgba(45,212,191,0.3)] active:scale-95">
-                            {isPlaying ? <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> : <svg className="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
-                        </button>
-                        <button onClick={() => handleSeek(currentTime + 15)} className="text-white hover:text-teal-400 transition-colors active:scale-95"><svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg></button>
-                    </div>
-                    <button className="text-slate-500 hover:text-teal-400 transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg></button>
-                 </div>
-            </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 

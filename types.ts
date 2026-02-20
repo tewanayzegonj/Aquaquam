@@ -1,3 +1,4 @@
+
 export type Category = string;
 
 export enum PerformanceType {
@@ -48,6 +49,8 @@ export interface Track {
   audio_url: string;
   available_performances: PerformanceType[];
   merigeta_metadata: MerigetaMetadata;
+  size?: number; // in bytes
+  duration?: number; // in seconds
 }
 
 export interface DayData {
@@ -79,6 +82,8 @@ export interface LibraryItem {
   type: LibraryItemType;
   url?: string;            
   createdAt: number;
+  size?: number; // in bytes
+  duration?: number; // in seconds
 }
 
 export interface User {

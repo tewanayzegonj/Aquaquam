@@ -129,10 +129,45 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const categoryToDelete = categories.find(c => c.id === deleteConfirmId);
+
   return (
     <aside 
       className={`fixed top-0 left-0 z-50 h-full bg-white dark:bg-donezo-card-dark border-r border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72 shadow-2xl'}`}
     >
+      {/* Centered Deletion Dialog */}
+      {deleteConfirmId && categoryToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-fade-in">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)}></div>
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm p-8 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 relative animate-fade-in-up">
+             <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Delete Library?</h3>
+                <p className="text-slate-500 text-sm mt-2 leading-relaxed">
+                   Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-slate-300">"{categoryToDelete.name}"</span>? This will remove the library access.
+                </p>
+             </div>
+             
+             <div className="flex gap-4">
+                <button 
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="flex-1 py-4 text-sm font-bold text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => { onDeleteCategory(deleteConfirmId); setDeleteConfirmId(null); }}
+                  className="flex-1 py-4 text-sm font-bold text-white bg-red-500 rounded-2xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* Brand / Title Area - Zema */}
       <div className="h-24 flex items-center justify-center border-b border-slate-100 dark:border-slate-800/50 flex-shrink-0 relative bg-gradient-to-b from-transparent to-slate-50/5 dark:to-white/5">
          
@@ -152,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({
          </div>
       </div>
 
-      {/* Nav List */}
+      {/* Nav List - Scrollable */}
       <div className="flex-1 overflow-y-auto py-6 space-y-2 px-3 scrollbar-hide">
         
         <button 
@@ -169,20 +204,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div className={`my-4 border-b border-slate-100 dark:border-slate-800 ${isCollapsed ? 'mx-2' : 'mx-0'}`}></div>
 
+        {/* Sticky Libraries Header */}
         {!isCollapsed && (
-          <div className="flex items-center justify-between px-2 mb-2">
+          <div className="sticky top-[-24px] z-10 bg-white dark:bg-donezo-card-dark pt-4 pb-2 -mx-1 px-3 mb-2 flex items-center justify-between border-b border-transparent">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Libraries</span>
             <div className="flex gap-1">
                <button 
                 onClick={() => { setIsEditing(!isEditing); setIsAdding(false); }} 
-                className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 ${isEditing ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400'}`}
+                className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isEditing ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400'}`}
                 title="Edit / Reorder"
                >
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                </button>
                <button 
                  onClick={handleAddClick} 
-                 className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 ${isAdding ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400'}`}
+                 className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${isAdding ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400'}`}
                  title="Add New Library"
                >
                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
@@ -208,74 +244,66 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {categories.map((cat, idx) => {
-          const isActive = selectedCategory === cat.name;
-          const iconColor = getCategoryColor(idx, categories.length);
-          
-          return (
-            <div key={cat.id} className="group relative">
-              <div 
-                onClick={() => { 
-                    if (!isEditing) {
-                        onSelectCategory(cat.name);
-                        setIsEditing(false); 
-                    }
-                }}
-                className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all relative 
-                  ${isActive ? 'bg-white border-slate-200 shadow-md dark:bg-slate-800 dark:border-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}
-                  ${isEditing ? 'cursor-default' : 'cursor-pointer'}
-                `}
-              >
-                <div className="flex-shrink-0 transition-transform group-hover:scale-110">
-                   <LibraryIcon color={isActive ? iconColor : (isCollapsed ? iconColor : '#94a3b8')} />
-                </div>
-                
-                {editingId === cat.id ? (
-                  <input 
-                    ref={editInputRef}
-                    className="flex-1 bg-slate-100 dark:bg-slate-900 border border-donezo-green rounded px-2 py-1 text-sm outline-none w-full min-w-0"
-                    value={editValue}
-                    onChange={e => setEditValue(e.target.value)}
-                    onBlur={handleSaveEdit}
-                    onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
-                    onClick={e => e.stopPropagation()}
-                  />
-                ) : (
-                  <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'} ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    {cat.name}
-                  </span>
-                )}
-
-                {!isCollapsed && isEditing && editingId !== cat.id && (
-                  <div className="absolute right-2 flex items-center gap-1 bg-white dark:bg-slate-800 shadow-sm p-1 rounded-lg animate-fade-in">
-                     <button onClick={(e) => { e.stopPropagation(); moveCategory(idx, 'up'); }} className="p-1 text-slate-400 hover:text-blue-500" title="Move Up">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>
-                     </button>
-                     <button onClick={(e) => { e.stopPropagation(); moveCategory(idx, 'down'); }} className="p-1 text-slate-400 hover:text-blue-500" title="Move Down">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-                     </button>
-                     <button onClick={(e) => { e.stopPropagation(); handleStartEdit(cat); }} className="p-1 text-slate-400 hover:text-amber-500" title="Rename">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                     </button>
-                     <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(cat.id); }} className="p-1 text-slate-400 hover:text-red-500" title="Delete">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                     </button>
+        <div className="space-y-2">
+          {categories.map((cat, idx) => {
+            const isActive = selectedCategory === cat.name;
+            const iconColor = getCategoryColor(idx, categories.length);
+            
+            return (
+              <div key={cat.id} className="group relative">
+                <div 
+                  onClick={() => { 
+                      if (!isEditing) {
+                          onSelectCategory(cat.name);
+                          setIsEditing(false); 
+                      }
+                  }}
+                  className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all relative 
+                    ${isActive ? 'bg-white border-slate-200 shadow-md dark:bg-slate-800 dark:border-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'}
+                    ${isEditing ? 'cursor-default' : 'cursor-pointer'}
+                  `}
+                >
+                  <div className="flex-shrink-0 transition-transform group-hover:scale-110">
+                    <LibraryIcon color={isActive ? iconColor : (isCollapsed ? iconColor : '#94a3b8')} />
                   </div>
-                )}
-              </div>
-              
-              {deleteConfirmId === cat.id && (
-                <div className="absolute left-0 top-full mt-2 z-50 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-xl border border-red-100 dark:border-red-900 w-48 animate-fade-in-up">
-                   <p className="text-xs text-slate-600 dark:text-slate-300 mb-2">Delete <b>{cat.name}</b>?</p>
-                   <div className="flex gap-2">
-                      <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-1 text-xs bg-slate-100 dark:bg-slate-700 rounded hover:bg-slate-200">Cancel</button>
-                      <button onClick={() => { onDeleteCategory(cat.id); setDeleteConfirmId(null); }} className="flex-1 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600">Delete</button>
-                   </div>
+                  
+                  {editingId === cat.id ? (
+                    <input 
+                      ref={editInputRef}
+                      className="flex-1 bg-slate-100 dark:bg-slate-900 border border-donezo-green rounded px-2 py-1 text-sm outline-none w-full min-w-0"
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={handleSaveEdit}
+                      onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className={`font-medium text-sm whitespace-nowrap overflow-hidden transition-all duration-300 ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-500'} ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                      {cat.name}
+                    </span>
+                  )}
+
+                  {!isCollapsed && isEditing && editingId !== cat.id && (
+                    <div className="absolute right-2 flex items-center gap-1 bg-white dark:bg-slate-800 shadow-sm p-1 rounded-lg animate-fade-in">
+                      <button onClick={(e) => { e.stopPropagation(); moveCategory(idx, 'up'); }} className="p-1 text-slate-400 hover:text-blue-500" title="Move Up">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); moveCategory(idx, 'down'); }} className="p-1 text-slate-400 hover:text-blue-500" title="Move Down">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleStartEdit(cat); }} className="p-1 text-slate-400 hover:text-amber-500" title="Rename">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(cat.id); }} className="p-1 text-slate-400 hover:text-red-500" title="Delete">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {isCollapsed && (
@@ -294,7 +322,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* REPOSITIONED: Collapsed Add Overlay - Centered in Screen */}
+      {/* Collapsed Add Overlay */}
       {isCollapsed && showCollapsedAdd && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-fade-in">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleCancelNew}></div>

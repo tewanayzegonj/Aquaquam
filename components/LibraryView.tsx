@@ -53,6 +53,23 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     return crumbs;
   };
 
+  // Helper: Format Bytes to human readable string
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return '';
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 B';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  // Helper: Format Duration (seconds) to MM:SS
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return '';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleCreateFolder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
@@ -94,16 +111,40 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const objectUrl = URL.createObjectURL(file);
-      const newFile: LibraryItem = {
-        id: `file_${Date.now()}`,
-        parentId: currentFolderId,
-        categoryId,
-        name: file.name.replace(/\.[^/.]+$/, ""),
-        type: 'audio',
-        url: objectUrl,
-        createdAt: Date.now()
+      
+      // Create a temporary audio element to extract duration
+      const tempAudio = new Audio(objectUrl);
+      
+      tempAudio.onloadedmetadata = () => {
+          const newFile: LibraryItem = {
+            id: `file_${Date.now()}`,
+            parentId: currentFolderId,
+            categoryId,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            type: 'audio',
+            url: objectUrl,
+            createdAt: Date.now(),
+            size: file.size,
+            duration: tempAudio.duration
+          };
+          onAddItem(newFile);
       };
-      onAddItem(newFile);
+
+      // Fallback if metadata fails (e.g., immediate trigger without duration)
+      tempAudio.onerror = () => {
+         const newFile: LibraryItem = {
+            id: `file_${Date.now()}`,
+            parentId: currentFolderId,
+            categoryId,
+            name: file.name.replace(/\.[^/.]+$/, ""),
+            type: 'audio',
+            url: objectUrl,
+            createdAt: Date.now(),
+            size: file.size,
+            duration: 0
+         };
+         onAddItem(newFile);
+      }
     }
   };
 
@@ -115,7 +156,9 @@ const LibraryView: React.FC<LibraryViewProps> = ({
         name: `Demo Audio ${items.filter(i => i.name.includes('Demo')).length + 1}`,
         type: 'audio',
         url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        size: 8500000, // ~8.5MB dummy size
+        duration: 372 // ~6:12 dummy duration
       };
       onAddItem(newFile);
   };
@@ -129,9 +172,31 @@ const LibraryView: React.FC<LibraryViewProps> = ({
         category: 'Imported',
         audio_url: item.url,
         available_performances: [PerformanceType.Zema],
-        merigeta_metadata: { notes: "Imported from local device" }
+        merigeta_metadata: { notes: "Imported from local device" },
+        size: item.size,
+        duration: item.duration
     };
     onPlayTrack(track);
+  };
+
+  const moveItem = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === currentItems.length - 1) return;
+
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const itemA = currentItems[index];
+    const itemB = currentItems[targetIndex];
+
+    const globalIndexA = items.findIndex(i => i.id === itemA.id);
+    const globalIndexB = items.findIndex(i => i.id === itemB.id);
+
+    if (globalIndexA !== -1 && globalIndexB !== -1) {
+        const newItems = [...items];
+        // Swap items in the global list
+        newItems[globalIndexA] = itemB;
+        newItems[globalIndexB] = itemA;
+        onReorderItems(newItems);
+    }
   };
 
   const getViewClasses = () => {
@@ -257,7 +322,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                 </button>
                 <input 
                   type="file" 
-                  accept="audio/*" 
+                  accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.flac" 
                   className="hidden" 
                   ref={fileInputRef}
                   onChange={handleFileUpload}
@@ -309,6 +374,25 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                  {isManageMode && (
                      <div className="absolute top-3 right-3 flex items-center gap-1 z-30 animate-fade-in">
                          <button 
+                            onClick={(e) => { e.stopPropagation(); moveItem(index, 'up'); }}
+                            disabled={index === 0}
+                            className="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-400 hover:text-blue-500 border border-slate-100 dark:border-slate-600 disabled:opacity-30 disabled:hover:text-slate-400"
+                            title="Move Previous"
+                         >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                         </button>
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); moveItem(index, 'down'); }}
+                            disabled={index === currentItems.length - 1}
+                            className="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-400 hover:text-blue-500 border border-slate-100 dark:border-slate-600 disabled:opacity-30 disabled:hover:text-slate-400"
+                            title="Move Next"
+                         >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                         </button>
+                         
+                         <div className="w-px h-4 bg-slate-200 dark:bg-slate-600 mx-1"></div>
+
+                         <button 
                             onClick={(e) => { e.stopPropagation(); handleStartEdit(item); }}
                             className="p-1.5 bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-400 hover:text-amber-500 border border-slate-100 dark:border-slate-600"
                          >
@@ -350,7 +434,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                         </p>
                     )}
                     <p className={`text-[10px] uppercase font-bold tracking-widest mt-0.5 ${!isManageMode && currentTrackId === item.id ? 'text-white/70' : 'text-slate-400'}`}>
-                        {item.type} {item.type === 'audio' && '• 2MB'}
+                        {item.type} {item.type === 'audio' && `• ${formatSize(item.size)} • ${formatDuration(item.duration)}`}
                     </p>
                  </div>
 

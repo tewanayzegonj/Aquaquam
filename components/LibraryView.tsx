@@ -155,12 +155,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     }
   });
 
-  useOnClickOutside(manageMenuRef, () => {
-    if (isManageMode) {
-      setIsManageMode(false);
-      setSelectedIds([]);
-    }
-  });
+  // Removed useOnClickOutside for manageMenuRef to prevent closing when selecting items
+  // The user can manually toggle manage mode off using the button
 
   const handleToggleSelect = (id: string) => {
       setSelectedIds(prev => 

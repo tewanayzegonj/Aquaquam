@@ -350,9 +350,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
     }
     
     if (pitchShiftRef.current) {
-      pitchShiftRef.current.pitch = pitch;
+      // Use rampTo for smooth pitch transitions to prevent audio glitches/freezing
+      // Tone.js signals support rampTo. If not available, fallback to direct assignment.
+      if (pitchShiftRef.current.pitch && typeof pitchShiftRef.current.pitch.rampTo === 'function') {
+        pitchShiftRef.current.pitch.rampTo(pitch, 0.1);
+      } else {
+        pitchShiftRef.current.pitch = pitch;
+      }
+
       // Bypass effect if pitch is 0 for natural sound
-      pitchShiftRef.current.wet.value = pitch === 0 ? 0 : 1;
+      // Use rampTo for wet/dry mix as well if possible
+      const targetWet = pitch === 0 ? 0 : 1;
+      if (pitchShiftRef.current.wet && typeof pitchShiftRef.current.wet.rampTo === 'function') {
+        pitchShiftRef.current.wet.rampTo(targetWet, 0.1);
+      } else {
+        pitchShiftRef.current.wet.value = targetWet;
+      }
       
       // Ensure context is running if pitch is changed
       if (Tone.context.state !== 'running') {
@@ -525,7 +538,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         const isExp = isExpandedRef.current;
         
         // Stop animation if neither view is active
-        if (!isFS && !isExp) {
+        // If isFS is false, we are in mini player mode (collapsed or expanded), so we should animate
+        if (!isFS && !audioRef.current) { 
             animationRef.current = null;
             return;
         }
@@ -736,13 +750,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   }, []);
 
   useEffect(() => {
-    if (isExpanded || isFullScreen) {
+    // Always run tick if player is active (even if collapsed)
+    if (currentTrack) {
         animationRef.current = requestAnimationFrame(tick);
     }
     return () => {
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [isExpanded, isFullScreen, tick]);
+  }, [currentTrack, isFullScreen, tick]);
 
   if (!currentTrack) return null;
 
@@ -1500,25 +1515,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
       {/* Mini Player */}
       <div className={`fixed bottom-0 right-0 bg-player-bg text-player-text border-t border-player-border transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
         
-        {/* Expanded View Content (Waveform) */}
-        <div className={`absolute inset-x-0 top-0 bottom-24 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-            <canvas 
-              ref={miniCanvasRef} 
-              width={windowWidth} 
-              height={280}
-              className="w-full h-full block"
-            />
-            {/* Close Expand Button */}
-            <button 
-               onClick={() => setIsExpanded(false)}
-               className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20"
-            >
-               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-        </div>
+        {/* Waveform Canvas - Always visible */}
+        <canvas 
+          ref={miniCanvasRef} 
+          width={windowWidth} 
+          height={isExpanded ? 384 : 96}
+          className="absolute inset-0 w-full h-full block opacity-40 pointer-events-none"
+        />
+
+        {/* Expanded View Close Button */}
+        <button 
+           onClick={() => setIsExpanded(false)}
+           className={`absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 z-20 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        >
+           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
 
         {/* Main Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-player-bg/80 backdrop-blur-xl border-t border-player-border flex items-center justify-between px-4 md:px-6 z-10">
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-player-bg/30 backdrop-blur-md border-t border-white/5 flex items-center justify-between px-4 md:px-6 z-10">
           
           {/* Track Info */}
           <div 
@@ -1568,7 +1582,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                     onMouseUp={handleSeekEnd}
                     onTouchStart={handleSeekStart}
                     onTouchEnd={handleSeekEnd}
-                    className="flex-1 h-1 bg-player-border rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-player-text [&::-webkit-slider-thumb]:rounded-full"
+                    className="flex-1 h-2 bg-player-border/50 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-player-text [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:scale-110 transition-all"
                  />
                  <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
              </div>

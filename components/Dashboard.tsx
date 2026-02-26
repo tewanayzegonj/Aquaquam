@@ -13,27 +13,8 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
   const recentFive = recentlyPlayed.slice(0, 5);
   const favoriteTen = favorites.slice(0, 10);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
-
   return (
     <div className="p-6 md:p-10 space-y-12 animate-fade-in pb-32 max-w-7xl mx-auto">
-       {/* Mobile Header: Minimalist & Liturgical */}
-       <header className="flex items-center justify-between mb-8 md:hidden">
-          <div>
-             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{getGreeting()}</p>
-             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Aququam Library</h1>
-          </div>
-          <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-donezo-green transition-colors relative">
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
-          </button>
-       </header>
-
        {/* Hero Section: Playing Now */}
        <section className="relative group">
           <div className="hidden md:flex items-center justify-between mb-6">

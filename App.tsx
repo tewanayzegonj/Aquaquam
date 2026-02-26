@@ -17,10 +17,10 @@ const App: React.FC = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('eotc_theme');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
+  // Enforce Permanent Dark Mode
+  useEffect(() => {
+    document.documentElement.classList.add('dark');
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -106,15 +106,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('eotc_favorites', JSON.stringify(favorites));
   }, [favorites]);
-
-  useEffect(() => {
-    localStorage.setItem('eotc_theme', JSON.stringify(isDarkMode));
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -291,8 +282,6 @@ const App: React.FC = () => {
           currentUser={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           selectedMonth={selectedCategory}
           selectedDay={selectedDay}
           searchQuery={searchQuery}

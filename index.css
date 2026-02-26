@@ -47,31 +47,7 @@
 
 @layer base {
   :root {
-    /* Light Mode: Clean, Vibrant, and Warm */
-    --bg-primary: #FFF9F2; /* Warm white */
-    --bg-card: #FFFFFF;
-    --bg-cream: #fffbeb;
-    
-    --accent-primary: #F59E0B; /* Amber - Vibrant accent */
-    --accent-warm: #E11D48; /* Rose */
-    --accent-deep: #9f1239; /* Deep Rose */
-    
-    --bg-dark: #09090b;
-    --bg-card-dark: #18181b;
-    --bg-dark-alt: #292524;
-    
-    /* Audio Player Variables */
-    --player-bg: #FFFFFF;
-    --player-text: #1c1917;
-    --player-muted: #78716c;
-    --player-border: #f5f5f4;
-    --player-accent: #F59E0B;
-    --player-accent-hover: #d97706;
-    --player-panel: #fdf8f6;
-  }
-
-  .dark {
-    /* Dark Mode */
+    /* Unified Dark Mode */
     --bg-primary: #09090b;
     --bg-card: #18181b;
     --bg-cream: #27272a;
@@ -91,7 +67,7 @@
   }
 
   body { 
-    @apply transition-colors duration-300 bg-donezo-bg dark:bg-donezo-dark text-slate-900 dark:text-slate-100 font-sans;
+    @apply transition-colors duration-300 bg-donezo-bg text-slate-100 font-sans;
   }
 }
 

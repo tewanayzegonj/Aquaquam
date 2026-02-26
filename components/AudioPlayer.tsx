@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import * as Tone from 'tone';
-import { Track } from '../types';
+import useOnClickOutside from '../hooks/useOnClickOutside';
 
 interface AudioPlayerProps {
   currentTrack: Track | null;
@@ -118,6 +118,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const [loopB, setLoopB] = useState<number | null>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [isEditingLoop, setIsEditingLoop] = useState(false);
+  const [waveformZoom, setWaveformZoom] = useState(1);
+  const [showZoomMenu, setShowZoomMenu] = useState(false);
+  const zoomMenuRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+  const bookmarksRef = useRef<HTMLDivElement>(null);
+  const waveformZoomRef = useRef(1);
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
@@ -126,6 +132,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
   const [editBookmarkLabel, setEditBookmarkLabel] = useState("");
+
+  useOnClickOutside(zoomMenuRef, () => setShowZoomMenu(false));
+  useOnClickOutside(settingsRef, () => setShowSettings(false));
+  useOnClickOutside(bookmarksRef, () => setShowBookmarks(false));
+
+  // Update zoom ref
+  useEffect(() => {
+    waveformZoomRef.current = waveformZoom;
+  }, [waveformZoom]);
 
   // Load bookmarks from localStorage
   useEffect(() => {
@@ -311,15 +326,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
             sourceRef.current = Tone.context.createMediaElementSource(audio);
         }
 
-        const pitchShift = new Tone.PitchShift(pitch).toDestination();
-        pitchShift.windowSize = 0.2; 
-        pitchShift.delayTime = 0.05;
+        // Disable browser's native pitch preservation so Tone.js can handle it
+        if ('preservesPitch' in audio) {
+            audio.preservesPitch = false;
+        } else if ('webkitPreservesPitch' in audio) {
+            audio.webkitPreservesPitch = false;
+        }
+
+        const pitchShift = new Tone.PitchShift({
+          pitch: pitch,
+          windowSize: 0.1,
+          delayTime: 0.03,
+        }).toDestination();
+        
+        // Connect source to pitch shift
+        sourceRef.current.connect(pitchShift);
         
         pitchShiftRef.current = pitchShift;
     } catch (e) {
         console.error("Tone.js init error:", e);
         isToneStarted.current = false;
-        // Fallback: if Tone fails, ensure source is at least connected to destination if it was created
         if (sourceRef.current) {
             try { sourceRef.current.connect(Tone.context.destination); } catch (e) { console.error("Fallback connection failed", e); }
         }
@@ -362,10 +388,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
     const t = audioRef.current.currentTime;
     setCurrentTime(t);
     
-    // Handle A/B Loop
-    if (isLooping && loopA !== null && loopB !== null) {
-      if (t >= loopB) {
-        audioRef.current.currentTime = loopA;
+    // Handle A/B Loop using refs for latest values
+    if (isLoopingRef.current && loopARef.current !== null && loopBRef.current !== null) {
+      if (t >= loopBRef.current) {
+        audioRef.current.currentTime = loopARef.current;
       }
     }
 
@@ -573,8 +599,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         ctx.clearRect(0, 0, width, height);
         
         // Config
-        const barWidth = 1.5; // Thinner bars for higher density
-        const gap = 0.5;
+        const zoomFactor = Math.pow(1.5, waveformZoomRef.current - 1); // Exponential zoom for significant width increase
+        const barWidth = 1.5 * zoomFactor;
+        const gap = 1 * zoomFactor;
         const totalBarWidth = barWidth + gap;
         
         // Calculate scroll offset based on time
@@ -597,7 +624,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         ctx.translate(offsetX, 0);
 
         // Optimized Batch Drawing
-        // 1. Draw Background Bars
+        // 1. Draw Background Bars (Unplayed, inside loop or no loop)
         ctx.beginPath();
         waveData.forEach((val, i) => {
             const x = i * totalBarWidth;
@@ -607,33 +634,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
             const timeAtX = (x / totalWaveWidth) * dur;
             if (isL && lA !== null && lB !== null && (timeAtX < lA || timeAtX > lB)) return;
 
-            const barHeight = Math.max(2, val * (height * 0.6));
+            const barHeight = Math.max(2, val * (height * 0.85));
             const y = (height - barHeight) / 2;
             ctx.rect(x, y, barWidth, barHeight);
         });
         ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.fill();
 
-        // 1b. Draw Grayed Out Background Bars
-        if (isL && lA !== null && lB !== null) {
-            ctx.beginPath();
-            waveData.forEach((val, i) => {
-                const x = i * totalBarWidth;
-                if (x + offsetX < -50 || x + offsetX > width + 50) return;
-                if (x < pixelsPlayed) return;
-
-                const timeAtX = (x / totalWaveWidth) * dur;
-                if (!(timeAtX < lA || timeAtX > lB)) return;
-
-                const barHeight = Math.max(2, val * (height * 0.6));
-                const y = (height - barHeight) / 2;
-                ctx.rect(x, y, barWidth, barHeight);
-            });
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.fill();
-        }
-
-        // 2. Draw Played Bars with Glow
+        // 2. Draw Played Bars with Glow (Inside loop or no loop)
         ctx.shadowBlur = 8;
         ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
         ctx.beginPath();
@@ -645,29 +653,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
             const timeAtX = (x / totalWaveWidth) * dur;
             if (isL && lA !== null && lB !== null && (timeAtX < lA || timeAtX > lB)) return;
 
-            const barHeight = Math.max(2, val * (height * 0.6));
+            const barHeight = Math.max(2, val * (height * 0.85));
             const y = (height - barHeight) / 2;
             ctx.rect(x, y, barWidth, barHeight);
         });
         ctx.fillStyle = gradient;
         ctx.fill();
 
-        // 2b. Draw Grayed Out Played Bars
+        // 3. Draw Grayed Out Bars (Outside loop, completely grayed out regardless of played state)
         if (isL && lA !== null && lB !== null) {
+            ctx.shadowBlur = 0; // Remove glow for grayed out areas
             ctx.beginPath();
             waveData.forEach((val, i) => {
                 const x = i * totalBarWidth;
                 if (x + offsetX < -50 || x + offsetX > width + 50) return;
-                if (x >= pixelsPlayed) return;
 
                 const timeAtX = (x / totalWaveWidth) * dur;
-                if (!(timeAtX < lA || timeAtX > lB)) return;
+                if (!(timeAtX < lA || timeAtX > lB)) return; // Only draw if OUTSIDE loop
 
-                const barHeight = Math.max(2, val * (height * 0.6));
+                const barHeight = Math.max(2, val * (height * 0.85));
                 const y = (height - barHeight) / 2;
                 ctx.rect(x, y, barWidth, barHeight);
             });
-            ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.fill();
         }
 
@@ -811,32 +819,44 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col px-4 md:px-8 gap-2 md:gap-4 overflow-hidden w-full relative pb-2 md:pb-4">
+          <div className="flex-1 flex flex-col px-4 md:px-8 gap-2 md:gap-4 overflow-y-auto scrollbar-hide w-full relative pb-2 md:pb-4">
             
             {/* Metadata Info / Sleep Timer Countdown */}
-            <div className="space-y-1 text-center md:text-left flex-shrink-0 pt-2">
+            <div className="space-y-1 text-center md:text-left flex-shrink-0 pt-2 min-h-[60px] flex flex-col justify-center">
               {sleepTimer !== null && sleepTimer > 0 ? (
-                <div className="flex flex-col items-center md:items-start animate-pulse">
+                <div className="flex items-center justify-center animate-pulse w-full relative">
+                  <div className="flex-1"></div>
                   <div className="bg-donezo-green/10 border border-donezo-green/30 px-4 py-1 rounded-xl text-donezo-green text-2xl md:text-3xl font-black tracking-tighter font-mono shadow-lg shadow-donezo-green/5">
                     {formatSleepTimer(sleepTimer)}
                   </div>
+                  <div className="flex-1 flex justify-start pl-3">
+                    <button 
+                      onClick={() => setSleepTimer(null)}
+                      className="p-2 bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-500 rounded-full transition-colors"
+                      title="Cancel Timer"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                  <h2 className="text-white text-lg md:text-xl font-bold tracking-tight truncate">{currentTrack.title}</h2>
-                  {currentTrack.composer && (
-                    <span className="text-white/40 text-xs md:text-sm font-medium">by {currentTrack.composer}</span>
+                <>
+                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
+                    <h2 className="text-white text-lg md:text-xl font-bold tracking-tight truncate">{currentTrack.title}</h2>
+                    {currentTrack.composer && (
+                      <span className="text-white/40 text-xs md:text-sm font-medium">by {currentTrack.composer}</span>
+                    )}
+                  </div>
+                  {currentTrack.scriptureReference && (
+                    <p className="text-white/60 text-[10px] md:text-xs font-medium uppercase tracking-widest">{currentTrack.scriptureReference}</p>
                   )}
-                </div>
-              )}
-              {currentTrack.scriptureReference && !sleepTimer && (
-                <p className="text-white/60 text-[10px] md:text-xs font-medium uppercase tracking-widest">{currentTrack.scriptureReference}</p>
+                </>
               )}
             </div>
 
             {/* Settings Overlay */}
             {showSettings && (
-              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6 md:gap-8">
+              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6 md:gap-8" ref={settingsRef}>
                 <div className="flex justify-between items-center">
                   <h3 className="text-white text-2xl font-black tracking-tight">Player Settings</h3>
                   <button onClick={() => setShowSettings(false)} className="text-white/40 hover:text-white">
@@ -904,19 +924,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                 <div className="mt-auto flex flex-col gap-3">
                    <button 
                     onClick={() => {
-                      isToneStarted.current = false;
-                      if (sourceRef.current) {
-                        try { sourceRef.current.disconnect(); } catch { /* ignore */ }
-                        sourceRef.current = null;
-                      }
-                      initTone();
-                    }}
-                    className="w-full py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 font-bold rounded-2xl transition-all border border-amber-500/20"
-                   >
-                     Repair Audio Engine
-                   </button>
-                   <button 
-                    onClick={() => {
                       setTempo(100);
                       setSeekAmount(10);
                       setPitch(0);
@@ -931,7 +938,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
 
             {/* Bookmarks Overlay */}
             {showBookmarks && (
-              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6">
+              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6" ref={bookmarksRef}>
                 <div className="flex justify-between items-center">
                   <h3 className="text-white text-2xl font-black tracking-tight">Bookmarks</h3>
                   <button onClick={() => setShowBookmarks(false)} className="text-white/40 hover:text-white">
@@ -1110,12 +1117,20 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
 
                 {/* Mini Waveform in Loop Editor */}
                 <div className="w-full h-16 bg-white/5 rounded-xl overflow-hidden mb-8 relative">
-                   <div className="absolute inset-0 flex items-center justify-center gap-[1px]">
-                      {waveformData.slice(0, 100).map((val, i) => (
+                   <div className="absolute inset-0 flex items-center justify-between px-1">
+                      {waveformData.filter((_, i) => i % 4 === 0).map((val, i) => (
                         <div key={i} className="w-[2px] bg-white/20" style={{ height: `${val * 100}%` }} />
                       ))}
                    </div>
-                   <div className="absolute top-0 bottom-0 border-2 border-[#00A3FF] w-12 left-1/2 -translate-x-1/2 rounded-md" />
+                   {loopA !== null && (
+                     <div 
+                       className="absolute top-0 bottom-0 bg-[#00A3FF]/30 border-x-2 border-[#00A3FF] transition-all duration-200"
+                       style={{
+                         left: `${(loopA / duration) * 100}%`,
+                         width: loopB !== null ? `${Math.max(0, ((loopB - loopA) / duration) * 100)}%` : '2px'
+                       }}
+                     />
+                   )}
                 </div>
 
                 <div className="flex-1 w-full flex flex-col gap-8">
@@ -1188,9 +1203,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                   </div>
                 </div>
 
-                <div className="mt-auto w-full flex gap-4 mb-4">
+                <div className="mt-auto w-full flex flex-col gap-4 mb-4">
+                   <div className="flex items-center justify-between px-2 mb-2">
+                     <span className="text-white/60 text-sm font-bold">Enable Loop</span>
+                     <button 
+                       onClick={() => setIsLooping(!isLooping)}
+                       className={`w-12 h-6 rounded-full transition-colors relative ${isLooping ? 'bg-donezo-green' : 'bg-white/10'}`}
+                     >
+                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isLooping ? 'left-7' : 'left-1'}`} />
+                     </button>
+                   </div>
                    <button 
-                    onClick={() => setIsEditingLoop(false)}
+                    onClick={() => {
+                      setIsEditingLoop(false);
+                      setIsLooping(true); // Ensure looping is active when done
+                      if (loopA !== null && audioRef.current) {
+                        audioRef.current.currentTime = loopA;
+                      }
+                    }}
                     className="flex-1 py-4 bg-[#00A3FF] text-white font-bold rounded-2xl shadow-lg shadow-[#00A3FF]/20"
                    >
                      Done
@@ -1362,6 +1392,43 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
               onTouchMove={handleWaveformTouchMove}
               onTouchEnd={handleWaveformTouchEnd}
             >
+              {/* Zoom Control */}
+              <div className="absolute top-4 left-4 z-30" ref={zoomMenuRef}>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowZoomMenu(!showZoomMenu);
+                  }}
+                  className={`p-2 backdrop-blur-md rounded-lg transition-colors border ${showZoomMenu ? 'bg-donezo-green/20 text-donezo-green border-donezo-green/50' : 'bg-black/40 text-white/60 hover:text-[#00A3FF] border-white/10'}`}
+                  title="Waveform Zoom"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </button>
+                
+                {showZoomMenu && (
+                  <div className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl w-32 animate-fade-in flex flex-col gap-1 max-h-64 overflow-y-auto scrollbar-hide">
+                    <div className="px-2 py-1 mb-1">
+                      <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Zoom Level</span>
+                    </div>
+                    {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(level => (
+                      <button
+                        key={level}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setWaveformZoom(level);
+                          setShowZoomMenu(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${waveformZoom === level ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
+                      >
+                        Level {level}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <canvas 
                 ref={fullScreenCanvasRef} 
                 width={500} 
@@ -1389,12 +1456,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
             </div>
 
             {/* Seeker & Playback Controls */}
-            <div className="space-y-3 md:space-y-4 flex-shrink-0">
+            <div className="space-y-3 md:space-y-4 flex-shrink-0 px-4 md:px-8">
               {/* Seek Slider */}
               <div className="space-y-1 md:space-y-2">
                 <div className="relative h-6 md:h-8 flex items-center">
                   <div className="absolute w-full h-2 bg-white/10 rounded-full"></div>
-                  <div ref={fsProgressRef} className="absolute h-2 bg-white/40 rounded-full" style={{ width: `${(currentTime / duration) * 100}%` }}></div>
+                  <div ref={fsProgressRef} className="absolute h-2 bg-[#00A3FF] rounded-full" style={{ width: `${(currentTime / duration) * 100}%` }}></div>
                   <input 
                     type="range" 
                     min={0} 
@@ -1448,6 +1515,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                     <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${!isPlaying ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-90'}`}>
                       <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                     </div>
+                    {sleepTimer !== null && sleepTimer > 0 && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-donezo-green rounded-full border-2 border-black flex items-center justify-center animate-pulse z-10">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                    )}
                   </button>
                   <button onClick={skipForward} className="text-[#00A3FF] hover:scale-110 transition-transform" title="Forward 10s">
                     <svg className="w-8 h-8 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M13 6v12l8.5-6L13 6zM4 6v12l8.5-6L4 6z"/></svg>
@@ -1593,7 +1665,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
          onTimeUpdate={handleTimeUpdate}
          onLoadedMetadata={handleLoadedMetadata}
          onEnded={() => {
-             if (repeatMode === 'one' && audioRef.current) {
+             if ((repeatMode === 'one' || (sleepTimer !== null && sleepTimer > 0)) && audioRef.current) {
                  audioRef.current.currentTime = 0;
                  audioRef.current.play();
              }

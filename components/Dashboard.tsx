@@ -24,25 +24,25 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
             </h2>
           </div>
           
-          <div className="relative bg-slate-900 dark:bg-black rounded-[3rem] overflow-hidden shadow-2xl border border-slate-800 transition-all duration-500 hover:shadow-donezo-green/10">
+          <div className="relative bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 transition-all duration-500 hover:shadow-donezo-green/10">
              {/* Background Decorative Elements */}
-             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-donezo-green/10 to-transparent pointer-events-none"></div>
-             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-eotc-gold/5 rounded-full blur-3xl pointer-events-none"></div>
+             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-donezo-green/5 to-transparent pointer-events-none"></div>
+             <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-donezo-green/5 rounded-full blur-3xl pointer-events-none"></div>
              
              {currentTrack ? (
-                 <div className="relative z-10 p-10 md:p-14 flex flex-col md:flex-row items-center gap-10">
+                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
                     {/* Large Track Icon/Image */}
                     <div className="relative flex-shrink-0">
-                        <div className="w-48 h-48 rounded-[2.5rem] bg-gradient-to-br from-donezo-green to-emerald-600 flex items-center justify-center shadow-2xl shadow-donezo-green/30 transform transition-transform group-hover:scale-105 duration-500">
-                           <svg className="w-24 h-24 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                        <div className="w-40 h-40 md:w-56 md:h-56 rounded-[3rem] bg-gradient-to-br from-donezo-green to-teal-500 flex items-center justify-center shadow-2xl shadow-donezo-green/20 transform transition-transform group-hover:scale-105 duration-500">
+                           <svg className="w-20 h-20 md:w-28 md:h-28 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                         </div>
                         {/* Animated Pulse Rings */}
-                        <div className="absolute inset-0 rounded-[2.5rem] border-2 border-donezo-green animate-ping opacity-20 pointer-events-none"></div>
+                        <div className="absolute inset-0 rounded-[3rem] border-2 border-donezo-green animate-ping opacity-10 pointer-events-none"></div>
                     </div>
 
-                    <div className="flex-1 text-center md:text-left min-w-0">
-                       <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                          <span className="px-3 py-1 rounded-full bg-donezo-green text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-donezo-green/20">Active Session</span>
+                    <div className="flex-1 text-center md:text-left min-w-0 px-4 md:px-0">
+                       <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
+                          <span className="px-4 py-1.5 rounded-full bg-donezo-green/10 text-donezo-green text-[10px] font-black uppercase tracking-widest shadow-sm">Active Session</span>
                           <div className="flex items-end gap-1 h-4">
                               <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_0.8s_ease-in-out_infinite]"></div>
                               <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_1.2s_ease-in-out_infinite]"></div>
@@ -50,10 +50,10 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
                               <div className="w-1 bg-donezo-green rounded-full animate-[music-bar_0.6s_ease-in-out_infinite]"></div>
                           </div>
                        </div>
-                       <h2 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter leading-none truncate">
+                       <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter leading-tight break-words">
                          {currentTrack.title}
                        </h2>
-                       <p className="text-slate-400 text-xl font-medium tracking-tight mb-8">
+                       <p className="text-slate-500 dark:text-slate-400 text-lg md:text-xl font-medium tracking-tight mb-8">
                          {currentTrack.category} • Ethiopian Orthodox Liturgy
                        </p>
                        
@@ -105,8 +105,8 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
                              <div className="w-20 h-20 rounded-3xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-donezo-green group-hover:text-white transition-all flex-shrink-0 shadow-inner">
                                 <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                              </div>
-                             <div className="min-w-0 flex-1">
-                                 <h4 className="font-bold text-slate-900 dark:text-white truncate text-lg tracking-tight mb-1">{track.title}</h4>
+                             <div className="min-w-0 flex-1 px-2">
+                                 <h4 className="font-bold text-slate-900 dark:text-white text-lg tracking-tight mb-1 break-words line-clamp-2">{track.title}</h4>
                                  <p className="text-xs text-slate-400 uppercase font-black tracking-widest truncate">{track.category}</p>
                              </div>
                              
@@ -147,8 +147,8 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
                              <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-donezo-green group-hover:text-white transition-all flex-shrink-0 font-black text-xs">
                                 {idx + 1}
                              </div>
-                             <div className="flex-1 min-w-0">
-                                 <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm tracking-tight">{track.title}</h4>
+                             <div className="flex-1 min-w-0 px-2">
+                                 <h4 className="font-bold text-slate-900 dark:text-white text-sm tracking-tight break-words line-clamp-1">{track.title}</h4>
                                  <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">{track.category}</p>
                              </div>
                              <div className="text-slate-300 group-hover:text-donezo-green transition-colors">

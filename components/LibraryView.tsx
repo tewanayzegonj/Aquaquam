@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { LibraryItem, Track, PerformanceType } from '../types';
 
+import useOnClickOutside from '../hooks/useOnClickOutside';
+
 interface LibraryViewProps {
   categoryId: string;
   items: LibraryItem[];
@@ -57,7 +59,17 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     };
     onToggleFavorite(track);
   };
+  const newFolderFormRef = useRef<HTMLFormElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const manageMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsAddingFolder(false);
+    setNewFolderName("");
+    setIsManageMode(false);
+    setSelectedIds([]);
+    setEditingItemId(null);
+  }, [categoryId]);
 
   const currentItems = items.filter(item => 
     item.categoryId === categoryId && item.parentId === currentFolderId
@@ -108,6 +120,13 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     setIsAddingFolder(false);
   };
 
+  useOnClickOutside(newFolderFormRef, () => {
+    if (isAddingFolder) {
+      setIsAddingFolder(false);
+      setNewFolderName("");
+    }
+  });
+
   const handleStartEdit = (item: LibraryItem) => {
       setEditingItemId(item.id);
       setEditNameValue(item.name);
@@ -120,6 +139,19 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       }
       setEditingItemId(null);
   };
+
+  useOnClickOutside(renameInputRef, () => {
+    if (editingItemId) {
+      handleSaveRename();
+    }
+  });
+
+  useOnClickOutside(manageMenuRef, () => {
+    if (isManageMode) {
+      setIsManageMode(false);
+      setSelectedIds([]);
+    }
+  });
 
   const handleToggleSelect = (id: string) => {
       setSelectedIds(prev => 
@@ -328,7 +360,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
            <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
 
            {/* Manage Mode Toggle */}
-           <div className="flex items-center gap-2">
+           <div className="flex items-center gap-2" ref={manageMenuRef}>
              <button 
                   onClick={() => {
                     setIsManageMode(!isManageMode);
@@ -404,7 +436,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                 />
              </div>
            ) : (
-             <form onSubmit={handleCreateFolder} className="flex items-center gap-2 pr-2">
+             <form ref={newFolderFormRef} onSubmit={handleCreateFolder} className="flex items-center gap-2 pr-2">
                 <input 
                   autoFocus
                   type="text" 
@@ -534,7 +566,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                    )}
                  </div>
                  
-                 <div className={`flex-1 min-w-0 ${viewMode === 'list' ? 'pr-12' : ''}`}>
+                 <div className={`flex-1 min-w-0 ${viewMode === 'list' ? 'pr-12' : 'px-2'}`}>
                     {editingItemId === item.id ? (
                         <input 
                             ref={renameInputRef}
@@ -548,11 +580,11 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                             autoFocus
                         />
                     ) : (
-                        <p className={`font-bold text-sm truncate tracking-tight ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                        <p className={`font-bold text-sm tracking-tight line-clamp-2 break-words text-center px-2 ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                             {item.name}
                         </p>
                     )}
-                    <p className={`text-[10px] uppercase font-bold tracking-widest mt-0.5 ${!isManageMode && currentTrackId === item.id ? 'text-white/70' : 'text-slate-400'}`}>
+                    <p className={`text-[10px] uppercase font-bold tracking-widest mt-0.5 text-center ${!isManageMode && currentTrackId === item.id ? 'text-white/70' : 'text-slate-400'}`}>
                         {item.type} {item.type === 'audio' && `• ${formatSize(item.size)} • ${formatDuration(item.duration)}`}
                     </p>
                  </div>

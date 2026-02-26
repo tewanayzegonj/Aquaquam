@@ -28,7 +28,7 @@ async function startServer() {
     }
   }
 
-  // API routes
+  // API routes FIRST
   app.use(express.json());
 
   app.get("/api/data", (req, res) => {
@@ -40,13 +40,9 @@ async function startServer() {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
     res.json({ status: "saved" });
   });
-  
-  if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
-  } else {
+
+  // THEN Vite middleware
+  if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
@@ -54,8 +50,14 @@ async function startServer() {
         ws: false
       },
       appType: "spa",
+      logLevel: "silent",
     });
     app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.join(__dirname, "dist")));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(__dirname, "dist", "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {

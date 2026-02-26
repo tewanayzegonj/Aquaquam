@@ -18,68 +18,59 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script>
-      // Suppress Vite WebSocket errors
+      // Intercept and mock Vite's WebSocket to prevent connection errors
       (function() {
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalLog = console.log;
+        const OriginalWebSocket = window.WebSocket;
         
-        const suppressPatterns = [
-          '[vite] failed to connect to websocket',
-          'WebSocket closed without opened',
-          'failed to connect to websocket',
-          '[vite] connecting...',
-          '[vite] server connection lost',
-          'vite: client connection lost',
-          'WebSocket connection to',
-          'ERR_CONNECTION_REFUSED'
-        ];
-        
-        const shouldSuppress = (args) => {
-          return args.some(arg => {
-            const msg = String(arg);
-            return suppressPatterns.some(p => msg.includes(p));
-          });
-        };
-
-        console.error = function(...args) {
-          if (shouldSuppress(args)) return;
-          originalError.apply(console, args);
-        };
-        
-        console.warn = function(...args) {
-          if (shouldSuppress(args)) return;
-          originalWarn.apply(console, args);
-        };
-
-        console.log = function(...args) {
-          if (shouldSuppress(args)) return;
-          originalLog.apply(console, args);
-        };
-
-        window.onerror = function(message, source, lineno, colno, error) {
-          if (message && typeof message === 'string' && suppressPatterns.some(p => message.includes(p))) {
-            return true; // Suppress
+        class DummyWebSocket {
+          constructor(url, protocols) {
+            this.url = url;
+            this.protocols = protocols;
+            this.readyState = 0; // CONNECTING
+            this.onopen = null;
+            this.onmessage = null;
+            this.onclose = null;
+            this.onerror = null;
+            
+            // Simulate successful connection to keep Vite client happy
+            setTimeout(() => {
+              this.readyState = 1; // OPEN
+              if (typeof this.onopen === 'function') {
+                this.onopen(new Event('open'));
+              }
+            }, 100);
           }
-        };
+          send() {}
+          close() {
+            this.readyState = 3; // CLOSED
+            if (typeof this.onclose === 'function') {
+              this.onclose(new Event('close'));
+            }
+          }
+          addEventListener(type, listener) {
+            this['on' + type] = listener;
+          }
+          removeEventListener(type, listener) {
+            if (this['on' + type] === listener) {
+              this['on' + type] = null;
+            }
+          }
+          dispatchEvent() { return true; }
+        }
 
-        window.addEventListener('unhandledrejection', function(event) {
-          if (event.reason && (
-            (event.reason.message && suppressPatterns.some(p => event.reason.message.includes(p))) ||
-            (typeof event.reason === 'string' && suppressPatterns.some(p => event.reason.includes(p))) ||
-            (event.reason.name === 'Error' && event.reason.message === 'failed to connect to websocket')
-          )) {
-            event.preventDefault();
-            event.stopPropagation();
+        window.WebSocket = function(url, protocols) {
+          if (protocols === 'vite-hmr' || (typeof url === 'string' && url.includes('vite'))) {
+            return new DummyWebSocket(url, protocols);
           }
-        }, true);
+          return new OriginalWebSocket(url, protocols);
+        };
         
-        window.addEventListener('error', function(event) {
-          if (event.message && suppressPatterns.some(p => event.message.includes(p))) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
-        }, true);
+        // Copy static properties
+        window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+        window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+        window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+        window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+        window.WebSocket.prototype = OriginalWebSocket.prototype;
       })();
     </script>
     <link rel="stylesheet" href="/index.css">

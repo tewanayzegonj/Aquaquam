@@ -13,24 +13,43 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
   const recentFive = recentlyPlayed.slice(0, 5);
   const favoriteTen = favorites.slice(0, 10);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
+
   return (
-    <div className="p-6 md:p-10 space-y-16 animate-fade-in pb-32 max-w-7xl mx-auto">
+    <div className="p-6 md:p-10 space-y-12 animate-fade-in pb-32 max-w-7xl mx-auto">
+       {/* Mobile Header: Minimalist & Liturgical */}
+       <header className="flex items-center justify-between mb-8 md:hidden">
+          <div>
+             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{getGreeting()}</p>
+             <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Aququam Library</h1>
+          </div>
+          <button className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-donezo-green transition-colors relative">
+             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+             <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
+          </button>
+       </header>
+
        {/* Hero Section: Playing Now */}
        <section className="relative group">
-          <div className="flex items-center justify-between mb-6">
+          <div className="hidden md:flex items-center justify-between mb-6">
             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
               <span className="w-2 h-8 bg-donezo-green rounded-full"></span>
               Playing Now
             </h2>
           </div>
           
-          <div className="relative bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 transition-all duration-500 hover:shadow-donezo-green/10">
+          <div className="relative bg-white dark:bg-slate-900 rounded-[2.5rem] md:rounded-[3rem] overflow-hidden shadow-xl shadow-slate-200/50 dark:shadow-black/50 border border-slate-100 dark:border-slate-800 transition-all duration-500 hover:shadow-donezo-green/10">
              {/* Background Decorative Elements */}
              <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-donezo-green/5 to-transparent pointer-events-none"></div>
              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-donezo-green/5 rounded-full blur-3xl pointer-events-none"></div>
              
              {currentTrack ? (
-                 <div className="relative z-10 p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
+                 <div className="relative z-10 p-6 md:p-12 flex flex-col md:flex-row items-center gap-6 md:gap-12">
                     {/* Large Track Icon/Image */}
                     <div className="relative flex-shrink-0">
                         <div className="w-40 h-40 md:w-56 md:h-56 rounded-[3rem] bg-gradient-to-br from-donezo-green to-teal-500 flex items-center justify-center shadow-2xl shadow-donezo-green/20 transform transition-transform group-hover:scale-105 duration-500">

@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { LibraryItem, Track, PerformanceType } from '../types';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 import useOnClickOutside from '../hooks/useOnClickOutside';
 
@@ -43,6 +44,18 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [itemToDelete, setItemToDelete] = useState<LibraryItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const currentItems = useMemo(() => items.filter(item => 
+    item.categoryId === categoryId && item.parentId === currentFolderId
+  ), [items, categoryId, currentFolderId]);
+
+  const rowVirtualizer = useVirtualizer({
+    count: currentItems.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => viewMode === 'list' ? 88 : 216,
+    lanes: viewMode === 'list' ? 1 : (typeof window !== 'undefined' && window.innerWidth >= 1536 ? 8 : window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 4 : window.innerWidth >= 640 ? 3 : 2),
+  });
 
   const handleToggleFavorite = (e: React.MouseEvent, item: LibraryItem) => {
     e.stopPropagation();
@@ -70,10 +83,6 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     setSelectedIds([]);
     setEditingItemId(null);
   }, [categoryId]);
-
-  const currentItems = items.filter(item => 
-    item.categoryId === categoryId && item.parentId === currentFolderId
-  );
 
   const getBreadcrumbs = () => {
     const crumbs = [];

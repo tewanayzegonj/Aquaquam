@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { MOCK_DB, DEFAULT_CATEGORIES } from './constants';
 import { Category, DayData, Track, NavItemType, LibraryItem, User } from './types';
 import AudioPlayer from './components/AudioPlayer.tsx';
 import Sidebar from './components/Sidebar.tsx';
 import Header from './components/Header.tsx';
-import Dashboard from './components/Dashboard.tsx';
-import LibraryView from './components/LibraryView.tsx';
 import AuthView from './components/AuthView.tsx';
+
+const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
+const LibraryView = lazy(() => import('./components/LibraryView.tsx'));
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -229,29 +230,33 @@ const App: React.FC = () => {
   const renderContent = () => {
     if (selectedCategory === 'Dashboard') {
       return (
-        <Dashboard 
-          currentTrack={currentTrack}
-          recentlyPlayed={recentlyPlayed}
-          favorites={favorites}
-          onPlay={handlePlayTrack}
-          onToggleFavorite={toggleFavorite}
-        />
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-green"></div></div>}>
+          <Dashboard 
+            currentTrack={currentTrack}
+            recentlyPlayed={recentlyPlayed}
+            favorites={favorites}
+            onPlay={handlePlayTrack}
+            onToggleFavorite={toggleFavorite}
+          />
+        </Suspense>
       );
     }
 
     return (
-      <LibraryView 
-        categoryId={selectedCategory}
-        items={libraryItems}
-        favorites={favorites}
-        onAddItem={handleAddLibraryItem}
-        onUpdateItem={handleUpdateLibraryItem}
-        onDeleteItem={handleDeleteLibraryItem}
-        onReorderItems={handleReorderLibraryItems}
-        onPlayTrack={handlePlayTrack}
-        onToggleFavorite={toggleFavorite}
-        currentTrackId={currentTrack?.id}
-      />
+      <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-green"></div></div>}>
+        <LibraryView 
+          categoryId={selectedCategory}
+          items={libraryItems}
+          favorites={favorites}
+          onAddItem={handleAddLibraryItem}
+          onUpdateItem={handleUpdateLibraryItem}
+          onDeleteItem={handleDeleteLibraryItem}
+          onReorderItems={handleReorderLibraryItems}
+          onPlayTrack={handlePlayTrack}
+          onToggleFavorite={toggleFavorite}
+          currentTrackId={currentTrack?.id}
+        />
+      </Suspense>
     );
   };
 

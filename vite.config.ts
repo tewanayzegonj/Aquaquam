@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -13,14 +13,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['pwa-icon.svg'],
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module'
       },
       manifest: {
         name: 'EOTC Aququam Library',
         short_name: 'Aququam',
         description: 'Ethiopian Orthodox Tewahedo Church Aququam Audio Library',
-        theme_color: '#10b981',
-        background_color: '#ffffff',
+        theme_color: '#F59E0B',
+        background_color: '#FFF9F2',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
@@ -51,7 +52,8 @@ export default defineConfig({
       ignored: ['**/db.json']
     }
   },
-  optimizeDeps: {
-    entries: []
+  build: {
+    target: 'esnext',
+    sourcemap: false
   }
 })

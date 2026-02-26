@@ -54,7 +54,8 @@ const ScrollPicker: React.FC<{
         <div 
           ref={containerRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-scroll scrollbar-hide snap-y snap-mandatory py-[40px]"
+          className="h-full overflow-y-scroll scrollbar-hide snap-y snap-mandatory overscroll-contain py-[40px]"
+          style={{ scrollBehavior: 'smooth' }}
         >
           {options.map((opt, i) => (
             <div 
@@ -116,14 +117,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const [pitch, setPitch] = useState(0);
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
-  const [isLooping, setIsLooping] = useState(false);
+  const [isLooping] = useState(false);
   const [isEditingLoop, setIsEditingLoop] = useState(false);
-  const [waveformZoom, setWaveformZoom] = useState(1);
-  const [showZoomMenu, setShowZoomMenu] = useState(false);
-  const zoomMenuRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const bookmarksRef = useRef<HTMLDivElement>(null);
-  const waveformZoomRef = useRef(1);
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
@@ -133,14 +130,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
   const [editBookmarkLabel, setEditBookmarkLabel] = useState("");
 
-  useOnClickOutside(zoomMenuRef, () => setShowZoomMenu(false));
   useOnClickOutside(settingsRef, () => setShowSettings(false));
   useOnClickOutside(bookmarksRef, () => setShowBookmarks(false));
-
-  // Update zoom ref
-  useEffect(() => {
-    waveformZoomRef.current = waveformZoom;
-  }, [waveformZoom]);
 
   // Load bookmarks from localStorage
   useEffect(() => {
@@ -389,7 +380,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
     setCurrentTime(t);
     
     // Handle A/B Loop using refs for latest values
-    if (isLoopingRef.current && loopARef.current !== null && loopBRef.current !== null) {
+    if (loopARef.current !== null && loopBRef.current !== null) {
       if (t >= loopBRef.current) {
         audioRef.current.currentTime = loopARef.current;
       }
@@ -583,7 +574,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         const waveData = waveformDataRef.current;
         const lA = loopARef.current;
         const lB = loopBRef.current;
-        const isL = isLoopingRef.current;
+        const isL = lA !== null && lB !== null;
         
         // Smoothly update progress bars via DOM refs
         const progressPercent = dur > 0 ? (curTime / dur) * 100 : 0;
@@ -599,10 +590,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         ctx.clearRect(0, 0, width, height);
         
         // Config
-        const zoomFactor = Math.pow(1.5, waveformZoomRef.current - 1); // Exponential zoom for significant width increase
-        const barWidth = 1.5 * zoomFactor;
-        const gap = 1 * zoomFactor;
-        const totalBarWidth = barWidth + gap;
+        const barWidth = 2;
+        const totalBarWidth = 3;
         
         // Calculate scroll offset based on time
         const centerX = width / 2;
@@ -723,7 +712,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         ctx.stroke();
 
         // Gradient fade edges
-        const fadeColor = isFS ? 'rgba(0,0,0,' : 'rgba(2,6,23,';
+        const isDark = document.documentElement.classList.contains('dark');
+        // Match the player background color
+        // Dark: slate-950 (#020617 -> 2, 6, 23)
+        // Light: white (#FFFFFF -> 255, 255, 255)
+        const fadeColor = isDark ? 'rgba(2,6,23,' : 'rgba(255,255,255,';
         
         ctx.fillStyle = ctx.createLinearGradient(0, 0, 60, 0);
         (ctx.fillStyle as CanvasGradient).addColorStop(0, `${fadeColor} 1)`);
@@ -756,14 +749,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   return (
     <>
       {/* Full Screen Player */}
-      <div className={`fixed inset-0 bg-black z-[100] transition-all duration-700 ease-in-out flex flex-col items-center antialiased overflow-hidden ${isFullScreen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+      <div className={`fixed inset-0 bg-player-bg z-[100] transition-all duration-700 ease-in-out flex flex-col items-center antialiased overflow-hidden ${isFullScreen ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
         
         {/* Centered Container for Desktop */}
-        <div className="w-full max-w-lg h-full flex flex-col bg-black shadow-2xl relative overflow-hidden">
+        <div className="w-full max-w-lg h-full flex flex-col bg-player-bg shadow-2xl relative overflow-hidden">
           
           {/* Drag Handle */}
           <div className="w-full flex justify-center pt-2 md:pt-4 flex-shrink-0">
-            <div className="w-12 h-1 bg-white/20 rounded-full"></div>
+            <div className="w-12 h-1 bg-player-text/20 rounded-full"></div>
           </div>
 
           {/* Header */}
@@ -1101,7 +1094,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                       onClick={() => {
                         setLoopA(null);
                         setLoopB(null);
-                        setIsLooping(false);
                       }}
                       className="text-white/40 hover:text-white"
                       title="Clear Loop"
@@ -1204,19 +1196,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                 </div>
 
                 <div className="mt-auto w-full flex flex-col gap-4 mb-4">
-                   <div className="flex items-center justify-between px-2 mb-2">
-                     <span className="text-white/60 text-sm font-bold">Enable Loop</span>
-                     <button 
-                       onClick={() => setIsLooping(!isLooping)}
-                       className={`w-12 h-6 rounded-full transition-colors relative ${isLooping ? 'bg-donezo-green' : 'bg-white/10'}`}
-                     >
-                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isLooping ? 'left-7' : 'left-1'}`} />
-                     </button>
-                   </div>
                    <button 
                     onClick={() => {
                       setIsEditingLoop(false);
-                      setIsLooping(true); // Ensure looping is active when done
                       if (loopA !== null && audioRef.current) {
                         audioRef.current.currentTime = loopA;
                       }
@@ -1354,11 +1336,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                         if (loopB === null) {
                           if (loopA !== null && currentTime > loopA) {
                             setLoopB(currentTime);
-                            setIsLooping(true);
                           }
                         } else {
                           setLoopB(null);
-                          setIsLooping(false);
                         }
                       }}
                       className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-xs md:text-sm font-bold transition-all ${loopB !== null ? 'bg-[#00A3FF]/20 text-[#00A3FF] border border-[#00A3FF]/40' : 'bg-white/5 text-white/40 hover:text-white'}`}
@@ -1369,7 +1349,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                       onClick={() => {
                         setLoopA(null);
                         setLoopB(null);
-                        setIsLooping(false);
                       }}
                       className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
                     >
@@ -1384,7 +1363,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
 
             {/* Waveform Visualizer */}
             <div 
-              className="relative w-full flex-1 min-h-0 bg-black rounded-3xl overflow-hidden shadow-inner border border-white/5 cursor-pointer group flex-shrink touch-auto"
+              className="relative w-full flex-1 min-h-0 cursor-pointer group flex-shrink touch-auto"
               onMouseDown={handleWaveformMouseDown}
               onMouseMove={handleWaveformMouseMove}
               onMouseUp={handleWaveformMouseUp}
@@ -1392,43 +1371,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
               onTouchMove={handleWaveformTouchMove}
               onTouchEnd={handleWaveformTouchEnd}
             >
-              {/* Zoom Control */}
-              <div className="absolute top-4 left-4 z-30" ref={zoomMenuRef}>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowZoomMenu(!showZoomMenu);
-                  }}
-                  className={`p-2 backdrop-blur-md rounded-lg transition-colors border ${showZoomMenu ? 'bg-donezo-green/20 text-donezo-green border-donezo-green/50' : 'bg-black/40 text-white/60 hover:text-[#00A3FF] border-white/10'}`}
-                  title="Waveform Zoom"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                  </svg>
-                </button>
-                
-                {showZoomMenu && (
-                  <div className="absolute top-full left-0 mt-2 bg-black/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-2xl w-32 animate-fade-in flex flex-col gap-1 max-h-64 overflow-y-auto scrollbar-hide">
-                    <div className="px-2 py-1 mb-1">
-                      <span className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Zoom Level</span>
-                    </div>
-                    {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map(level => (
-                      <button
-                        key={level}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setWaveformZoom(level);
-                          setShowZoomMenu(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-xl text-sm font-bold transition-all ${waveformZoom === level ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
-                      >
-                        Level {level}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <canvas 
                 ref={fullScreenCanvasRef} 
                 width={500} 
@@ -1556,7 +1498,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
       </div>
 
       {/* Mini Player */}
-      <div className={`fixed bottom-0 right-0 bg-slate-950 text-white border-t border-slate-800 transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
+      <div className={`fixed bottom-0 right-0 bg-player-bg text-player-text border-t border-player-border transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
         
         {/* Expanded View Content (Waveform) */}
         <div className={`absolute inset-x-0 top-0 bottom-24 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
@@ -1576,31 +1518,31 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         </div>
 
         {/* Main Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-slate-950/80 backdrop-blur-xl border-t border-slate-800 flex items-center justify-between px-4 md:px-6 z-10">
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-player-bg/80 backdrop-blur-xl border-t border-player-border flex items-center justify-between px-4 md:px-6 z-10">
           
           {/* Track Info */}
           <div 
             className="flex items-center gap-3 lg:gap-4 w-auto max-w-[35%] lg:w-1/4 min-w-0 cursor-pointer group"
             onClick={() => setIsFullScreen(true)}
           >
-             <div className="w-10 h-10 lg:w-14 lg:h-14 bg-slate-800 rounded-lg lg:rounded-xl flex items-center justify-center text-slate-500 flex-shrink-0 group-hover:bg-donezo-green group-hover:text-white transition-all">
+             <div className="w-10 h-10 lg:w-14 lg:h-14 bg-player-panel rounded-lg lg:rounded-xl flex items-center justify-center text-player-muted flex-shrink-0 group-hover:bg-player-accent group-hover:text-white transition-all">
                 <svg className="w-6 h-6 lg:w-8 lg:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
              </div>
              <div className="min-w-0">
-                 <h3 className="font-bold text-xs lg:text-sm truncate group-hover:text-donezo-green transition-colors">{currentTrack.title}</h3>
-                 <p className="text-[10px] lg:text-xs text-slate-400 truncate">{currentTrack.category}</p>
+                 <h3 className="font-bold text-xs lg:text-sm truncate group-hover:text-player-accent transition-colors">{currentTrack.title}</h3>
+                 <p className="text-[10px] lg:text-xs text-player-muted truncate">{currentTrack.category}</p>
              </div>
           </div>
 
           {/* Controls */}
           <div className="flex flex-col items-center flex-1 max-w-xl px-2">
              <div className="flex items-center gap-4 lg:gap-6 mb-2">
-                 <button onClick={skipBackward} className="hidden lg:block text-slate-400 hover:text-white transition-colors">
+                 <button onClick={skipBackward} className="hidden lg:block text-player-muted hover:text-player-text transition-colors">
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
                  </button>
                  <button 
                     onClick={handleTogglePlay}
-                    className="w-10 h-10 lg:w-12 lg:h-12 bg-white text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-white/10"
+                    className="w-10 h-10 lg:w-12 lg:h-12 bg-player-text text-player-bg rounded-full flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-black/10 dark:shadow-white/10"
                  >
                      {isPlaying ? (
                          <svg className="w-5 h-5 lg:w-6 lg:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -1608,12 +1550,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                          <svg className="w-5 h-5 lg:w-6 lg:h-6 ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                      )}
                  </button>
-                 <button onClick={skipForward} className="hidden lg:block text-slate-400 hover:text-white transition-colors">
+                 <button onClick={skipForward} className="hidden lg:block text-player-muted hover:text-player-text transition-colors">
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" /></svg>
                  </button>
              </div>
              
-             <div className="w-full flex items-center gap-3 text-xs text-slate-400 font-mono">
+             <div className="w-full flex items-center gap-3 text-xs text-player-muted font-mono">
                  <span ref={miniTimeLabelRef}>{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span>
                  <input 
                     ref={miniRangeRef}
@@ -1626,7 +1568,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                     onMouseUp={handleSeekEnd}
                     onTouchStart={handleSeekStart}
                     onTouchEnd={handleSeekEnd}
-                    className="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+                    className="flex-1 h-1 bg-player-border rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-player-text [&::-webkit-slider-thumb]:rounded-full"
                  />
                  <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
              </div>
@@ -1636,21 +1578,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
           <div className="flex justify-end items-center gap-2 lg:gap-4 lg:w-1/4">
               <button 
                   onClick={() => setIsFullScreen(true)}
-                  className="hidden lg:block p-2 text-slate-400 hover:text-white transition-colors"
+                  className="hidden lg:block p-2 text-player-muted hover:text-player-text transition-colors"
                   title="Full Screen"
               >
                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
               </button>
               <button 
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className={`hidden lg:flex p-2 rounded-lg transition-colors ${isExpanded ? 'text-donezo-green bg-donezo-green/10' : 'text-slate-400 hover:text-white'}`}
+                  className={`hidden lg:flex p-2 rounded-lg transition-colors ${isExpanded ? 'text-player-accent bg-player-accent/10' : 'text-player-muted hover:text-player-text'}`}
                   title="Visualizer"
               >
                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 3-2 3 2zm0 0v-8" /></svg>
               </button>
               <button 
                   onClick={onClose}
-                  className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+                  className="p-2 text-player-muted hover:text-red-400 transition-colors"
                   title="Close Player"
               >
                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1675,4 +1617,4 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   );
 };
 
-export default AudioPlayer;
+export default React.memo(AudioPlayer);

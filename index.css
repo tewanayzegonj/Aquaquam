@@ -1,16 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-donezo-green: #059669;
-  --color-donezo-dark: #09090b;
-  --color-donezo-card: #ffffff;
-  --color-donezo-card-dark: #18181b;
-  --color-donezo-bg: #fffcf0;
+  --color-donezo-green: var(--accent-primary);
+  --color-donezo-dark: var(--bg-dark);
+  --color-donezo-card: var(--bg-card);
+  --color-donezo-card-dark: var(--bg-card-dark);
+  --color-donezo-bg: var(--bg-primary);
   
-  --color-eotc-gold: #d97706;
-  --color-eotc-red: #78350f;
-  --color-eotc-cream: #fffbeb;
-  --color-eotc-dark: #292524;
+  --color-eotc-gold: var(--accent-warm);
+  --color-eotc-red: var(--accent-deep);
+  --color-eotc-cream: var(--bg-cream);
+  --color-eotc-dark: var(--bg-dark-alt);
+
+  --color-player-bg: var(--player-bg);
+  --color-player-text: var(--player-text);
+  --color-player-muted: var(--player-muted);
+  --color-player-border: var(--player-border);
+  --color-player-accent: var(--player-accent);
+  --color-player-accent-hover: var(--player-accent-hover);
+  --color-player-panel: var(--player-panel);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", "Georgia", serif;
@@ -38,6 +46,50 @@
 }
 
 @layer base {
+  :root {
+    /* Light Mode: Clean, Vibrant, and Warm */
+    --bg-primary: #FFF9F2; /* Warm white */
+    --bg-card: #FFFFFF;
+    --bg-cream: #fffbeb;
+    
+    --accent-primary: #F59E0B; /* Amber - Vibrant accent */
+    --accent-warm: #E11D48; /* Rose */
+    --accent-deep: #9f1239; /* Deep Rose */
+    
+    --bg-dark: #09090b;
+    --bg-card-dark: #18181b;
+    --bg-dark-alt: #292524;
+    
+    /* Audio Player Variables */
+    --player-bg: #FFFFFF;
+    --player-text: #1c1917;
+    --player-muted: #78716c;
+    --player-border: #f5f5f4;
+    --player-accent: #F59E0B;
+    --player-accent-hover: #d97706;
+    --player-panel: #fdf8f6;
+  }
+
+  .dark {
+    /* Dark Mode */
+    --bg-primary: #09090b;
+    --bg-card: #18181b;
+    --bg-cream: #27272a;
+    
+    --accent-primary: #059669; /* Emerald for dark mode */
+    --accent-warm: #d97706;
+    --accent-deep: #78350f;
+    
+    /* Audio Player Variables */
+    --player-bg: #020617; /* slate-950 */
+    --player-text: #ffffff;
+    --player-muted: #94a3b8;
+    --player-border: #1e293b;
+    --player-accent: #0ea5e9; /* sky-500 */
+    --player-accent-hover: #38bdf8;
+    --player-panel: #0f172a; /* slate-900 */
+  }
+
   body { 
     @apply transition-colors duration-300 bg-donezo-bg dark:bg-donezo-dark text-slate-900 dark:text-slate-100 font-sans;
   }

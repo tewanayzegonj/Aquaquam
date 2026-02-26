@@ -1,34 +1,47 @@
-# How to Create an Android APK
+# How to Build an Android App (APK)
 
-This application is built as a Progressive Web App (PWA). You can convert it into a native Android APK using **PWABuilder**.
+This application is a **Progressive Web App (PWA)**. It is designed to be installed directly on Android devices without needing the Play Store, but you can also package it as a standard Android App (APK/AAB) for the Play Store.
 
-## Steps to Generate APK
+## Option 1: Direct Install (Easiest)
 
-1.  **Deploy the App**: Ensure your app is deployed to a public URL (e.g., Vercel, Netlify, Firebase).
-2.  **Go to PWABuilder**: Visit [https://www.pwabuilder.com/](https://www.pwabuilder.com/).
-3.  **Enter URL**: Paste your deployed app's URL into the input field and click "Start".
-4.  **Review Audit**: PWABuilder will check your PWA manifest and service worker. Ensure you have a high score.
-    *   *Note: We have already configured the manifest and service worker for you.*
-5.  **Package for Android**:
-    *   Click "Package for Stores".
-    *   Select "Android".
-    *   Fill in the details (Package ID, App Name, etc.).
-    *   Click "Generate".
-6.  **Download APK/AAB**: You will receive a zip file containing:
-    *   `.apk` file (for direct installation on devices).
-    *   `.aab` file (for uploading to the Google Play Store).
-    *   Signing keys (keep these safe!).
+1.  Open the app in **Chrome** on your Android device.
+2.  Tap the **"Install"** button in the app header (if available).
+3.  OR tap the browser menu (three dots) -> **"Add to Home screen"** or **"Install app"**.
+4.  The app will appear in your app drawer and run like a native Android app.
 
-## Testing on Android Device
+## Option 2: Generate an APK using PWABuilder
 
-1.  Transfer the `.apk` file to your Android phone.
-2.  Open the file and tap "Install".
-    *   *You may need to enable "Install from Unknown Sources" in your settings.*
-3.  The app will install and appear in your app drawer like a native app.
+To create a real `.apk` file that you can share or upload to the Play Store:
+
+1.  **Deploy your app** to a public URL (e.g., Vercel, Netlify, or Firebase Hosting).
+    *   *Note: The current preview URL might change, so a permanent deployment is recommended.*
+2.  Go to **[PWABuilder.com](https://www.pwabuilder.com/)**.
+3.  Enter your deployed app's URL.
+4.  Click **Start**.
+5.  Once analyzed, click **Package for Stores**.
+6.  Select **Android**.
+7.  Follow the steps to generate your APK/AAB file.
+
+## Option 3: Bubblewrap (CLI Tool)
+
+For developers who want more control:
+
+1.  Install Bubblewrap:
+    ```bash
+    npm install -g @bubblewrap/cli
+    ```
+2.  Initialize the project:
+    ```bash
+    bubblewrap init --manifest=https://your-app-url.com/manifest.webmanifest
+    ```
+3.  Build the APK:
+    ```bash
+    bubblewrap build
+    ```
 
 ## Features Enabled
 
-*   **Offline Support**: Caches assets and pages for offline use.
-*   **Installable**: Can be added to the home screen.
-*   **Splash Screen**: Native-like launch experience.
-*   **Theme Color**: Matches the system UI.
+*   **Offline Support**: The app caches resources to work offline.
+*   **Standalone Mode**: Runs without the browser UI (URL bar, etc.).
+*   **Theme Color**: Matches the app's warm amber/rose palette.
+*   **Icon**: Uses the app's icon for the home screen.

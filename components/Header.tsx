@@ -14,6 +14,11 @@ interface HeaderProps {
   onLogout?: () => void;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
 const Header: React.FC<HeaderProps> = ({ 
   currentUser,
   onToggleSidebar, 
@@ -24,6 +29,7 @@ const Header: React.FC<HeaderProps> = ({
   onLogout
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const getInitials = (name: string) => {
@@ -46,30 +52,87 @@ const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   return (
-    <header className="h-20 bg-white dark:bg-donezo-card-dark border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-8 flex-shrink-0 z-20">
-      <div className="flex items-center gap-6">
+    <header className="h-20 bg-white dark:bg-donezo-card-dark border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-20 relative">
+      <div className="flex items-center gap-3 md:gap-6 flex-1">
         <button 
           onClick={onToggleSidebar}
-          className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-donezo-green transition-all active:scale-95"
+          className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-500 hover:text-donezo-green transition-all active:scale-95 flex-shrink-0"
           title="Menu"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
 
+        {/* Install App Button (Mobile/PWA) */}
+        {deferredPrompt && (
+          <button
+            onClick={handleInstallClick}
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-donezo-green text-white rounded-xl font-bold text-sm shadow-lg shadow-donezo-green/30 hover:bg-emerald-600 transition-all active:scale-95 animate-fade-in"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Install App
+          </button>
+        )}
+
+        {/* Desktop Search */}
         <div className="relative hidden md:block">
           <input 
             type="text" 
             placeholder="Search library..." 
             value={searchQuery || ''}
             onChange={(e) => onSearchChange?.(e.target.value)}
-            className="w-80 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-donezo-green transition-all dark:text-white"
+            className="w-64 lg:w-80 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-donezo-green transition-all dark:text-white"
           />
           <svg className="w-5 h-5 absolute left-4 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
+
+        {/* Mobile Search Toggle */}
+        <button 
+          onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+          className="md:hidden p-2.5 text-slate-400 hover:text-donezo-green transition-colors"
+        >
+           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </button>
       </div>
 
-      <div className="flex items-center gap-6">
+      {/* Mobile Search Bar Overlay */}
+      {isMobileSearchOpen && (
+        <div className="absolute inset-x-0 top-20 bg-white dark:bg-donezo-card-dark border-b border-slate-100 dark:border-slate-800 p-4 z-30 animate-fade-in md:hidden">
+           <div className="relative">
+              <input 
+                autoFocus
+                type="text" 
+                placeholder="Search..." 
+                value={searchQuery || ''}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800 border-none rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-donezo-green transition-all dark:text-white"
+              />
+              <svg className="w-5 h-5 absolute left-4 top-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+           </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 md:gap-6">
         <button 
           onClick={onToggleDarkMode}
           className="p-2.5 text-slate-500 hover:text-donezo-green transition-all"

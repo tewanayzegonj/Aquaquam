@@ -199,7 +199,8 @@ const App: React.FC = () => {
     setLibraryItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
 
-  const handleDeleteLibraryItem = (id: string) => {
+  const handleDeleteLibraryItem = (idOrIds: string | string[]) => {
+    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
     const deleteRecursive = (items: LibraryItem[], targetId: string): LibraryItem[] => {
         const children = items.filter(i => i.parentId === targetId);
         let remaining = items.filter(i => i.id !== targetId);
@@ -208,7 +209,13 @@ const App: React.FC = () => {
         });
         return remaining;
     };
-    setLibraryItems(prev => deleteRecursive(prev, id));
+    setLibraryItems(prev => {
+        let current = prev;
+        ids.forEach(id => {
+            current = deleteRecursive(current, id);
+        });
+        return current;
+    });
   };
 
   const handleReorderLibraryItems = (newItems: LibraryItem[]) => {
@@ -236,11 +243,13 @@ const App: React.FC = () => {
       <LibraryView 
         categoryId={selectedCategory}
         items={libraryItems}
+        favorites={favorites}
         onAddItem={handleAddLibraryItem}
         onUpdateItem={handleUpdateLibraryItem}
         onDeleteItem={handleDeleteLibraryItem}
         onReorderItems={handleReorderLibraryItems}
         onPlayTrack={handlePlayTrack}
+        onToggleFavorite={toggleFavorite}
         currentTrackId={currentTrack?.id}
       />
     );
@@ -251,7 +260,7 @@ const App: React.FC = () => {
       
       {!isSidebarCollapsed && (
         <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[55] transition-opacity animate-fade-in"
+          className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-[55] transition-opacity animate-fade-in"
           onClick={() => setIsSidebarCollapsed(true)}
         />
       )}
@@ -272,7 +281,7 @@ const App: React.FC = () => {
         db={MOCK_DB}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 ml-0 lg:ml-20 transition-all duration-300">
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isSidebarCollapsed ? 'ml-0 lg:ml-20' : 'ml-0 lg:ml-72'}`}>
         <Header 
           currentUser={currentUser}
           isSidebarCollapsed={isSidebarCollapsed}
@@ -294,10 +303,12 @@ const App: React.FC = () => {
       </div>
 
       <AudioPlayer 
+        key={currentTrack?.id || 'none'}
         currentTrack={currentTrack} 
         isPlaying={isPlaying} 
         onTogglePlay={() => setIsPlaying(!isPlaying)} 
         onClose={handleClosePlayer}
+        isSidebarCollapsed={isSidebarCollapsed}
       />
     </div>
   );

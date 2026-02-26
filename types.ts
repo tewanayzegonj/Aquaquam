@@ -51,6 +51,9 @@ export interface Track {
   merigeta_metadata: MerigetaMetadata;
   size?: number; // in bytes
   duration?: number; // in seconds
+  scriptureReference?: string;
+  composer?: string;
+  historicalContext?: string;
 }
 
 export interface DayData {
@@ -84,6 +87,9 @@ export interface LibraryItem {
   createdAt: number;
   size?: number; // in bytes
   duration?: number; // in seconds
+  scriptureReference?: string;
+  composer?: string;
+  historicalContext?: string;
 }
 
 export interface User {

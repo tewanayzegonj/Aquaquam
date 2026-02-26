@@ -4,24 +4,28 @@ import { LibraryItem, Track, PerformanceType } from '../types';
 interface LibraryViewProps {
   categoryId: string;
   items: LibraryItem[];
+  favorites: Track[];
   onAddItem: (item: LibraryItem) => void;
   onUpdateItem: (id: string, updates: Partial<LibraryItem>) => void;
-  onDeleteItem: (id: string) => void;
+  onDeleteItem: (id: string | string[]) => void;
   onReorderItems: (items: LibraryItem[]) => void;
   onPlayTrack: (track: Track) => void;
+  onToggleFavorite: (track: Track) => void;
   currentTrackId?: string;
 }
 
-type ViewMode = 'grid' | 'list' | 'landscape';
+type ViewMode = 'grid' | 'list';
 
 const LibraryView: React.FC<LibraryViewProps> = ({ 
   categoryId, 
   items, 
+  favorites,
   onAddItem, 
   onUpdateItem,
   onDeleteItem,
   onReorderItems,
   onPlayTrack,
+  onToggleFavorite,
   currentTrackId 
 }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -31,11 +35,28 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [newFolderName, setNewFolderName] = useState("");
   
   const [isManageMode, setIsManageMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [itemToDelete, setItemToDelete] = useState<LibraryItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleToggleFavorite = (e: React.MouseEvent, item: LibraryItem) => {
+    e.stopPropagation();
+    // Convert LibraryItem to Track for favorites
+    const track: Track = {
+        id: item.id,
+        title: item.name,
+        category: 'Imported',
+        audio_url: item.url || '',
+        available_performances: [PerformanceType.Zema],
+        merigeta_metadata: { notes: "Imported from local device" },
+        size: item.size,
+        duration: item.duration
+    };
+    onToggleFavorite(track);
+  };
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   const currentItems = items.filter(item => 
@@ -100,10 +121,36 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       setEditingItemId(null);
   };
 
+  const handleToggleSelect = (id: string) => {
+      setSelectedIds(prev => 
+          prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      );
+  };
+
+  const handleSelectAll = () => {
+      if (selectedIds.length === currentItems.length) {
+          setSelectedIds([]);
+      } else {
+          setSelectedIds(currentItems.map(i => i.id));
+      }
+  };
+
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+
+  const handleDeleteSelected = () => {
+      if (selectedIds.length === 0) return;
+      setItemsToDelete(selectedIds);
+  };
+
   const handleDeleteConfirm = () => {
       if (itemToDelete) {
           onDeleteItem(itemToDelete.id);
           setItemToDelete(null);
+      } else if (itemsToDelete.length > 0) {
+          onDeleteItem(itemsToDelete);
+          setItemsToDelete([]);
+          setSelectedIds([]);
+          setIsManageMode(false);
       }
   };
 
@@ -202,8 +249,6 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const getViewClasses = () => {
       switch (viewMode) {
           case 'list': return 'grid grid-cols-1 gap-2';
-          case 'landscape': 
-            return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4';
           case 'grid': 
           default: 
             return 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4';
@@ -213,19 +258,27 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   return (
     <div className="p-6 md:p-10 h-full flex flex-col relative">
       
-      {itemToDelete && (
+      {(itemToDelete || itemsToDelete.length > 0) && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setItemToDelete(null)}></div>
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setItemToDelete(null); setItemsToDelete([]); }}></div>
               <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl relative w-full max-w-sm animate-fade-in-up">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Delete {itemToDelete.type}?</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+                    {itemToDelete ? `Delete ${itemToDelete.type}?` : `Delete ${itemsToDelete.length} items?`}
+                  </h3>
                   <p className="text-slate-500 text-sm mb-8 leading-relaxed">
-                      Are you sure you want to delete <span className="font-bold text-slate-800 dark:text-slate-300">"{itemToDelete.name}"</span>? 
-                      {itemToDelete.type === 'folder' && " This will delete all contents inside."}
+                      {itemToDelete ? (
+                        <>
+                          Are you sure you want to delete <span className="font-bold text-slate-800 dark:text-slate-300">"{itemToDelete.name}"</span>? 
+                          {itemToDelete.type === 'folder' && " This will delete all contents inside."}
+                        </>
+                      ) : (
+                        <>Are you sure you want to delete these {itemsToDelete.length} items?</>
+                      )}
                       <br/>This action is irreversible.
                   </p>
                   <div className="flex gap-4">
                       <button 
-                        onClick={() => setItemToDelete(null)}
+                        onClick={() => { setItemToDelete(null); setItemsToDelete([]); }}
                         className="flex-1 py-3 text-slate-500 font-bold text-sm bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-colors"
                       >
                           Cancel
@@ -241,8 +294,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           </div>
       )}
 
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-6">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+      <div className="flex flex-col items-center mb-10 gap-6 w-full">
+        <div className="w-full flex flex-wrap items-center justify-start gap-3 text-sm text-slate-400">
           {getBreadcrumbs().map((crumb, idx) => (
              <React.Fragment key={crumb.id || 'root'}>
                 {idx > 0 && <span className="opacity-30">/</span>}
@@ -261,32 +314,53 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-3 bg-white dark:bg-donezo-card-dark p-2 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-x-auto max-w-full scrollbar-hide">
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-white dark:bg-donezo-card-dark p-2 rounded-[2rem] md:rounded-full border border-slate-100 dark:border-slate-800 shadow-sm w-full md:w-auto">
            {/* View Mode Switcher */}
-           <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-1 flex-shrink-0">
+            <div className="flex items-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-1">
               <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-600 text-donezo-green shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
               </button>
               <button onClick={() => setViewMode('list')} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-600 text-donezo-green shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
               </button>
-              <button onClick={() => setViewMode('landscape')} className={`p-2 rounded-xl transition-all ${viewMode === 'landscape' ? 'bg-white dark:bg-slate-600 text-donezo-green shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" /></svg>
-              </button>
            </div>
 
-           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 flex-shrink-0"></div>
+           <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
 
            {/* Manage Mode Toggle */}
-           <button 
-                onClick={() => setIsManageMode(!isManageMode)}
-                className={`p-2.5 rounded-2xl transition-all flex-shrink-0 ${isManageMode ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-50'}`}
-                title="Manage"
-            >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-           </button>
+           <div className="flex items-center gap-2">
+             <button 
+                  onClick={() => {
+                    setIsManageMode(!isManageMode);
+                    setSelectedIds([]);
+                  }}
+                  className={`p-2.5 rounded-2xl transition-all ${isManageMode ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-50'}`}
+                  title="Manage"
+              >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+             </button>
+
+             {isManageMode && (
+               <div className="flex items-center gap-2 animate-fade-in">
+                 <button 
+                  onClick={handleSelectAll}
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"
+                 >
+                   {selectedIds.length === currentItems.length ? 'Deselect All' : 'Select All'}
+                 </button>
+                 {selectedIds.length > 0 && (
+                   <button 
+                    onClick={handleDeleteSelected}
+                    className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                   >
+                     Delete ({selectedIds.length})
+                   </button>
+                 )}
+               </div>
+             )}
+           </div>
            
-           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 flex-shrink-0"></div>
+           <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
 
            {/* New Actions: Import and Demo */}
            {!isAddingFolder ? (
@@ -320,6 +394,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   <span className="hidden lg:inline text-xs font-bold">Import</span>
                 </button>
+
                 <input 
                   type="file" 
                   accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.flac" 
@@ -357,22 +432,62 @@ const LibraryView: React.FC<LibraryViewProps> = ({
           </div>
         ) : (
           <div className={getViewClasses()}>
-            {currentItems.map((item, index) => (
+            {currentItems.map((item, index) => {
+              // Check if folder has audio content (shallow check)
+              const hasAudioContent = item.type === 'folder' && items.some(i => i.parentId === item.id && i.type === 'audio');
+              
+              return (
               <div 
                 key={item.id}
-                onClick={() => !isManageMode && (item.type === 'folder' ? setCurrentFolderId(item.id) : playItem(item))}
+                onClick={() => {
+                  if (isManageMode) {
+                    handleToggleSelect(item.id);
+                  } else {
+                    if (item.type === 'folder') {
+                      setCurrentFolderId(item.id);
+                    } else {
+                      playItem(item);
+                    }
+                  }
+                }}
                 className={`group relative p-5 rounded-3xl border transition-all flex items-center gap-4 
-                    ${isManageMode ? 'border-amber-100 dark:border-amber-900/30 bg-amber-50/20 cursor-default' : 'cursor-pointer hover:shadow-xl hover:shadow-black/5'}
+                    ${isManageMode ? 'border-amber-100 dark:border-amber-900/30 bg-amber-50/20 cursor-pointer' : 'cursor-pointer hover:shadow-xl hover:shadow-black/5'}
                     ${!isManageMode && currentTrackId === item.id 
                         ? 'bg-donezo-green text-white border-donezo-green' 
                         : 'bg-white dark:bg-donezo-card-dark border-slate-100 dark:border-slate-800 hover:border-donezo-green/30'
                     }
+                    ${isManageMode && selectedIds.includes(item.id) ? 'ring-2 ring-amber-500 bg-amber-50 dark:bg-amber-900/40' : ''}
                     ${viewMode === 'list' ? 'flex-row' : 'flex-col justify-center text-center h-48'}
-                    ${viewMode === 'landscape' ? 'flex-row h-24' : ''}
                 `}
               >
+                 {!isManageMode && (
+                    <button
+                        onClick={(e) => handleToggleFavorite(e, item)}
+                        className={`absolute z-30 p-1.5 rounded-full transition-all ${
+                            favorites.some(f => f.id === item.id)
+                                ? 'text-red-500 bg-red-50 dark:bg-red-900/20 opacity-100' 
+                                : 'text-slate-300 hover:text-red-400 opacity-100 lg:opacity-0 lg:group-hover:opacity-100'
+                        } ${viewMode === 'list' ? 'right-4 top-1/2 -translate-y-1/2' : 'top-3 right-3'}`}
+                        title={favorites.some(f => f.id === item.id) ? "Remove from favorites" : "Add to favorites"}
+                    >
+                        <svg className="w-5 h-5" fill={favorites.some(f => f.id === item.id) ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                    </button>
+                 )}
+
                  {isManageMode && (
-                     <div className="absolute top-3 right-3 flex items-center gap-1 z-30 animate-fade-in">
+                     <div className="absolute top-3 left-3 z-30">
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedIds.includes(item.id) ? 'bg-amber-500 border-amber-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                           {selectedIds.includes(item.id) && (
+                             <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                           )}
+                        </div>
+                     </div>
+                 )}
+
+                 {isManageMode && (
+                     <div className={`absolute flex items-center gap-1 z-30 animate-fade-in ${viewMode === 'list' ? 'right-3 top-1/2 -translate-y-1/2' : 'bottom-3 right-3'}`}>
                          <button 
                             onClick={(e) => { e.stopPropagation(); moveItem(index, 'up'); }}
                             disabled={index === 0}
@@ -409,13 +524,17 @@ const LibraryView: React.FC<LibraryViewProps> = ({
 
                  <div className={`rounded-2xl flex items-center justify-center bg-slate-50 dark:bg-slate-800 flex-shrink-0 transition-transform group-hover:scale-105 ${viewMode === 'list' ? 'w-10 h-10' : 'w-14 h-14'}`}>
                    {item.type === 'folder' ? (
-                     <svg className={`w-7 h-7 ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-amber-400'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                     hasAudioContent ? (
+                        <svg className={`w-7 h-7 ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-donezo-green'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 3-2 3 2zm0 0v-8" /><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" opacity="0.3"/></svg>
+                     ) : (
+                        <svg className={`w-7 h-7 ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-amber-400'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                     )
                    ) : (
                      <svg className={`w-7 h-7 ${!isManageMode && currentTrackId === item.id ? 'text-white' : 'text-blue-500'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 3-2 3 2zm0 0v-8" /></svg>
                    )}
                  </div>
                  
-                 <div className="flex-1 min-w-0">
+                 <div className={`flex-1 min-w-0 ${viewMode === 'list' ? 'pr-12' : ''}`}>
                     {editingItemId === item.id ? (
                         <input 
                             ref={renameInputRef}
@@ -442,7 +561,8 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                      <div className="absolute inset-0 bg-black/5 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
                  )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

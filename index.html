@@ -2,17 +2,86 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>EOTC Aququam Library</title>
     <meta name="description" content="Ethiopian Orthodox Tewahedo Church Aququam Audio Library" />
     <meta name="theme-color" content="#10b981" />
+    <meta name="mobile-web-app-capable" content="yes" />
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkVPVEMgQXF1cXVhbSBMaWJyYXJ5IiwKICAic2hvcnRfbmFtZSI6ICJBcXVxdWFtIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiNmZmZmZmYiLAogICJ0aGVtZV9jb2xvciI6ICIjMTBiOTgxIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9waWNzdW0ucGhvdG9zLzE5Mi8xOTIiLAogICAgICAic2l6ZXMiOiAxOTJ4MTkyIiwKICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXQp9" />
+    <link rel="icon" type="image/svg+xml" href="/pwa-icon.svg" />
+    <link rel="apple-touch-icon" href="/pwa-icon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <script>
+      // Suppress Vite WebSocket errors
+      (function() {
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const originalLog = console.log;
+        
+        const suppressPatterns = [
+          '[vite] failed to connect to websocket',
+          'WebSocket closed without opened',
+          'failed to connect to websocket',
+          '[vite] connecting...',
+          '[vite] server connection lost',
+          'vite: client connection lost',
+          'WebSocket connection to',
+          'ERR_CONNECTION_REFUSED'
+        ];
+        
+        const shouldSuppress = (args) => {
+          return args.some(arg => {
+            const msg = String(arg);
+            return suppressPatterns.some(p => msg.includes(p));
+          });
+        };
+
+        console.error = function(...args) {
+          if (shouldSuppress(args)) return;
+          originalError.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+          if (shouldSuppress(args)) return;
+          originalWarn.apply(console, args);
+        };
+
+        console.log = function(...args) {
+          if (shouldSuppress(args)) return;
+          originalLog.apply(console, args);
+        };
+
+        window.onerror = function(message, source, lineno, colno, error) {
+          if (message && typeof message === 'string' && suppressPatterns.some(p => message.includes(p))) {
+            return true; // Suppress
+          }
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event.reason && (
+            (event.reason.message && suppressPatterns.some(p => event.reason.message.includes(p))) ||
+            (typeof event.reason === 'string' && suppressPatterns.some(p => event.reason.includes(p))) ||
+            (event.reason.name === 'Error' && event.reason.message === 'failed to connect to websocket')
+          )) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+        
+        window.addEventListener('error', function(event) {
+          if (event.message && suppressPatterns.some(p => event.message.includes(p))) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+      })();
+    </script>
     <link rel="stylesheet" href="/index.css">
   </head>
   <body class="bg-donezo-bg dark:bg-donezo-dark text-slate-900 dark:text-slate-100 font-sans">

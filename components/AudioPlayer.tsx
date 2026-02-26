@@ -16,6 +16,60 @@ interface ExtendedAudioElement extends HTMLAudioElement {
   preservesPitch?: boolean;
 }
 
+const ScrollPicker: React.FC<{
+  options: (string | number)[];
+  value: string | number;
+  onChange: (val: string | number) => void;
+  label?: string;
+}> = ({ options, value, onChange, label }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const itemHeight = 40;
+
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const scrollTop = containerRef.current.scrollTop;
+    const index = Math.round(scrollTop / itemHeight);
+    if (options[index] !== undefined && options[index] !== value) {
+      onChange(options[index]);
+    }
+  };
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const index = options.indexOf(value);
+    if (index !== -1) {
+      containerRef.current.scrollTop = index * itemHeight;
+    }
+  }, [value, options]);
+
+  return (
+    <div className="flex flex-col items-center">
+      {label && <span className="text-[10px] text-white/40 uppercase font-bold tracking-widest mb-2">{label}</span>}
+      <div className="relative h-[120px] w-16 overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none z-10">
+          <div className="h-[40px] bg-gradient-to-b from-black to-transparent opacity-80" />
+          <div className="h-[40px] mt-[40px] border-y border-white/20" />
+          <div className="h-[40px] bg-gradient-to-t from-black to-transparent opacity-80" />
+        </div>
+        <div 
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-scroll scrollbar-hide snap-y snap-mandatory py-[40px]"
+        >
+          {options.map((opt, i) => (
+            <div 
+              key={i} 
+              className={`h-[40px] flex items-center justify-center snap-center transition-all duration-200 ${opt === value ? 'text-white text-lg font-bold' : 'text-white/20 text-sm'}`}
+            >
+              {typeof opt === 'number' ? opt.toString().padStart(2, '0') : opt}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTogglePlay, onClose, isSidebarCollapsed }) => {
   const audioRef = useRef<ExtendedAudioElement>(null);
   const fullScreenCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,6 +122,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const [repeatMode, setRepeatMode] = useState<'off' | 'one' | 'all'>('off');
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
+  const [bookmarks, setBookmarks] = useState<{ id: string; time: number; label: string }[]>([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
+  const [editBookmarkLabel, setEditBookmarkLabel] = useState("");
+
+  // Load bookmarks from localStorage
+  useEffect(() => {
+    if (currentTrack) {
+      const saved = localStorage.getItem(`bookmarks_${currentTrack.id}`);
+      if (saved) setBookmarks(JSON.parse(saved));
+      else setBookmarks([]);
+    }
+  }, [currentTrack]);
+
+  // Save bookmarks to localStorage
+  useEffect(() => {
+    if (currentTrack && bookmarks.length > 0) {
+      localStorage.setItem(`bookmarks_${currentTrack.id}`, JSON.stringify(bookmarks));
+    }
+  }, [bookmarks, currentTrack]);
 
   // Sleep Timer Logic
   useEffect(() => {
@@ -95,6 +169,32 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
     const s = seconds % 60;
     if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const addBookmark = () => {
+    const newBookmark = {
+      id: `bm_${Date.now()}`,
+      time: currentTime,
+      label: `Bookmark at ${formatTime(currentTime)}`
+    };
+    setBookmarks(prev => [...prev, newBookmark]);
+  };
+
+  const removeBookmark = (id: string) => {
+    setBookmarks(prev => prev.filter(b => b.id !== id));
+  };
+
+  const updateBookmarkLabel = (id: string, newLabel: string) => {
+    setBookmarks(prev => prev.map(b => b.id === id ? { ...b, label: newLabel } : b));
+    setEditingBookmarkId(null);
   };
 
   // Generate consistent waveform data
@@ -498,58 +598,78 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
 
         // Optimized Batch Drawing
         // 1. Draw Background Bars
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.beginPath();
         waveData.forEach((val, i) => {
             const x = i * totalBarWidth;
-            // Optimization: Only draw visible bars
             if (x + offsetX < -50 || x + offsetX > width + 50) return;
             if (x < pixelsPlayed) return;
 
-            // Gray out if outside loop (if looping is active)
             const timeAtX = (x / totalWaveWidth) * dur;
-            if (isL && lA !== null && lB !== null) {
-                if (timeAtX < lA || timeAtX > lB) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                } else {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                }
-            }
+            if (isL && lA !== null && lB !== null && (timeAtX < lA || timeAtX > lB)) return;
 
             const barHeight = Math.max(2, val * (height * 0.6));
-            
             const y = (height - barHeight) / 2;
             ctx.rect(x, y, barWidth, barHeight);
         });
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.fill();
 
+        // 1b. Draw Grayed Out Background Bars
+        if (isL && lA !== null && lB !== null) {
+            ctx.beginPath();
+            waveData.forEach((val, i) => {
+                const x = i * totalBarWidth;
+                if (x + offsetX < -50 || x + offsetX > width + 50) return;
+                if (x < pixelsPlayed) return;
+
+                const timeAtX = (x / totalWaveWidth) * dur;
+                if (!(timeAtX < lA || timeAtX > lB)) return;
+
+                const barHeight = Math.max(2, val * (height * 0.6));
+                const y = (height - barHeight) / 2;
+                ctx.rect(x, y, barWidth, barHeight);
+            });
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fill();
+        }
+
         // 2. Draw Played Bars with Glow
-        ctx.fillStyle = gradient;
         ctx.shadowBlur = 8;
         ctx.shadowColor = 'rgba(16, 185, 129, 0.5)';
         ctx.beginPath();
         waveData.forEach((val, i) => {
             const x = i * totalBarWidth;
-            // Optimization: Only draw visible bars
             if (x + offsetX < -50 || x + offsetX > width + 50) return;
             if (x >= pixelsPlayed) return;
 
-            // Gray out if outside loop (if looping is active)
             const timeAtX = (x / totalWaveWidth) * dur;
-            if (isL && lA !== null && lB !== null) {
-                if (timeAtX < lA || timeAtX > lB) {
-                    ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
-                } else {
-                    ctx.fillStyle = gradient;
-                }
-            }
+            if (isL && lA !== null && lB !== null && (timeAtX < lA || timeAtX > lB)) return;
 
             const barHeight = Math.max(2, val * (height * 0.6));
-
             const y = (height - barHeight) / 2;
             ctx.rect(x, y, barWidth, barHeight);
         });
+        ctx.fillStyle = gradient;
         ctx.fill();
+
+        // 2b. Draw Grayed Out Played Bars
+        if (isL && lA !== null && lB !== null) {
+            ctx.beginPath();
+            waveData.forEach((val, i) => {
+                const x = i * totalBarWidth;
+                if (x + offsetX < -50 || x + offsetX > width + 50) return;
+                if (x >= pixelsPlayed) return;
+
+                const timeAtX = (x / totalWaveWidth) * dur;
+                if (!(timeAtX < lA || timeAtX > lB)) return;
+
+                const barHeight = Math.max(2, val * (height * 0.6));
+                const y = (height - barHeight) / 2;
+                ctx.rect(x, y, barWidth, barHeight);
+            });
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            ctx.fill();
+        }
 
         ctx.restore();
 
@@ -644,62 +764,29 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
               <h2 className="text-white text-lg md:text-xl font-medium tracking-tight truncate max-w-[200px]">{currentTrack.title}</h2>
             </div>
             <div className="flex items-center gap-4 md:gap-6 text-white/80">
-              <div className="relative">
-                <button 
-                  onClick={() => {
-                    setShowSleepTimer(!showSleepTimer);
-                    setShowSettings(false);
-                  }}
-                  className={`hover:text-white transition-colors relative ${showSleepTimer || sleepTimer !== null ? 'text-donezo-green' : ''}`}
-                  title="Sleep Timer"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
-                  </svg>
-                  {sleepTimer !== null && (
-                    <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] font-bold bg-black px-1 rounded whitespace-nowrap">
-                      {formatSleepTimer(sleepTimer)}
-                    </span>
-                  )}
-                </button>
-                
-                {/* Sleep Timer Menu */}
-                {showSleepTimer && (
-                  <div className="absolute top-10 right-0 bg-[#1A1A1A] border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-fade-in min-w-[160px]">
-                    <h3 className="text-white font-bold mb-3 text-sm">Sleep Timer</h3>
-                    <div className="space-y-1">
-                      {[5, 10, 15, 30, 45, 60].map(mins => (
-                        <button
-                          key={mins}
-                          onClick={() => {
-                            setSleepTimer(mins * 60);
-                            setShowSleepTimer(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-                        >
-                          {mins} minutes
-                        </button>
-                      ))}
-                      <div className="h-px w-full bg-white/10 my-2"></div>
-                      <button
-                        onClick={() => {
-                          setSleepTimer(null);
-                          setShowSleepTimer(false);
-                        }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                      >
-                        Off
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
+              <button 
+                onClick={addBookmark}
+                className="hover:text-white transition-colors"
+                title="Add Bookmark"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
+              <button 
+                onClick={() => setShowBookmarks(!showBookmarks)}
+                className={`hover:text-white transition-colors ${showBookmarks ? 'text-donezo-green' : ''}`}
+                title="Bookmarks"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </button>
               <button 
                 onClick={() => {
                   setShowSettings(!showSettings);
                   setShowSleepTimer(false);
+                  setShowBookmarks(false);
                 }}
                 className={`hover:text-white transition-colors ${showSettings ? 'text-donezo-green' : ''}`}
                 title="Settings"
@@ -713,6 +800,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                 onClick={() => {
                   setIsFullScreen(false);
                   setShowSettings(false);
+                  setShowSleepTimer(false);
+                  setShowBookmarks(false);
                 }}
                 className="hover:text-white transition-colors"
               >
@@ -722,27 +811,26 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col px-4 md:px-8 gap-4 overflow-y-auto scrollbar-hide w-full relative pb-2 md:pb-4">
+          <div className="flex-1 flex flex-col px-4 md:px-8 gap-2 md:gap-4 overflow-hidden w-full relative pb-2 md:pb-4">
             
-            {/* Metadata Info */}
-            <div className="space-y-2 text-center md:text-left flex-shrink-0">
-              {currentTrack.composer && (
+            {/* Metadata Info / Sleep Timer Countdown */}
+            <div className="space-y-1 text-center md:text-left flex-shrink-0 pt-2">
+              {sleepTimer !== null && sleepTimer > 0 ? (
+                <div className="flex flex-col items-center md:items-start animate-pulse">
+                  <div className="bg-donezo-green/10 border border-donezo-green/30 px-4 py-1 rounded-xl text-donezo-green text-2xl md:text-3xl font-black tracking-tighter font-mono shadow-lg shadow-donezo-green/5">
+                    {formatSleepTimer(sleepTimer)}
+                  </div>
+                </div>
+              ) : (
                 <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                  <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Composer</span>
-                  <span className="text-white/90 text-sm font-medium">{currentTrack.composer}</span>
+                  <h2 className="text-white text-lg md:text-xl font-bold tracking-tight truncate">{currentTrack.title}</h2>
+                  {currentTrack.composer && (
+                    <span className="text-white/40 text-xs md:text-sm font-medium">by {currentTrack.composer}</span>
+                  )}
                 </div>
               )}
-              {currentTrack.scriptureReference && (
-                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                  <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Scripture</span>
-                  <span className="text-white/90 text-sm font-medium">{currentTrack.scriptureReference}</span>
-                </div>
-              )}
-              {currentTrack.historicalContext && (
-                <div className="flex flex-col gap-1 mt-1">
-                  <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Context</span>
-                  <p className="text-white/80 text-sm leading-relaxed line-clamp-2 md:line-clamp-3">{currentTrack.historicalContext}</p>
-                </div>
+              {currentTrack.scriptureReference && !sleepTimer && (
+                <p className="text-white/60 text-[10px] md:text-xs font-medium uppercase tracking-widest">{currentTrack.scriptureReference}</p>
               )}
             </div>
 
@@ -763,8 +851,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                       <span className="text-white/60 text-xs font-bold uppercase tracking-widest">Seek Interval</span>
                       <span className="text-donezo-green text-xl font-black">{seekAmount}s</span>
                     </div>
-                    <div className="grid grid-cols-4 gap-3">
-                      {[5, 10, 15, 30].map(amount => (
+                    <div className="grid grid-cols-5 gap-2">
+                      {[3, 5, 10, 15, 30].map(amount => (
                         <button 
                           key={amount}
                           onClick={() => setSeekAmount(amount)}
@@ -794,6 +882,23 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                       ))}
                     </div>
                   </div>
+
+                  {/* Sleep Timer Trigger */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white/60 text-xs font-bold uppercase tracking-widest">Sleep Timer</span>
+                      <span className="text-donezo-green text-xl font-black">{sleepTimer !== null ? formatSleepTimer(sleepTimer) : 'Off'}</span>
+                    </div>
+                    <button 
+                      onClick={() => setShowSleepTimer(true)}
+                      className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all flex items-center justify-center gap-3"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Set Sleep Timer
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-auto flex flex-col gap-3">
@@ -819,6 +924,276 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                     className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-2xl transition-all"
                    >
                      Reset to Defaults
+                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Bookmarks Overlay */}
+            {showBookmarks && (
+              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-white text-2xl font-black tracking-tight">Bookmarks</h3>
+                  <button onClick={() => setShowBookmarks(false)} className="text-white/40 hover:text-white">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
+                  {bookmarks.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-white/20 gap-4">
+                      <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      <p className="font-bold">No bookmarks yet</p>
+                    </div>
+                  ) : (
+                    bookmarks.map(bm => (
+                      <div key={bm.id} className="bg-white/5 rounded-2xl p-4 flex items-center justify-between group">
+                        {editingBookmarkId === bm.id ? (
+                          <div className="flex-1 flex items-center gap-2">
+                            <input 
+                              type="text"
+                              value={editBookmarkLabel}
+                              onChange={(e) => setEditBookmarkLabel(e.target.value)}
+                              onBlur={() => updateBookmarkLabel(bm.id, editBookmarkLabel)}
+                              className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-donezo-green"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') updateBookmarkLabel(bm.id, editBookmarkLabel);
+                                if (e.key === 'Escape') setEditingBookmarkId(null);
+                              }}
+                            />
+                            <button 
+                              onClick={() => updateBookmarkLabel(bm.id, editBookmarkLabel)}
+                              className="p-2 text-donezo-green hover:bg-donezo-green/10 rounded-xl transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => {
+                                if (audioRef.current) audioRef.current.currentTime = bm.time;
+                                setShowBookmarks(false);
+                              }}
+                              className="flex-1 text-left"
+                            >
+                              <p className="text-white font-bold">{bm.label}</p>
+                              <p className="text-white/40 text-xs font-mono">{formatTime(bm.time)}</p>
+                            </button>
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => {
+                                  setEditingBookmarkId(bm.id);
+                                  setEditBookmarkLabel(bm.label);
+                                }}
+                                className="p-2 text-white/20 hover:text-[#00A3FF] transition-colors"
+                                title="Rename"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button 
+                                onClick={() => removeBookmark(bm.id)}
+                                className="p-2 text-white/20 hover:text-red-500 transition-colors"
+                                title="Delete"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sleep Timer Overlay (Drum Picker + Horizontal Presets) */}
+            {showSleepTimer && (
+              <div className="absolute inset-0 z-[60] bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-8">
+                  <button onClick={() => setShowSleepTimer(false)} className="text-white/40 hover:text-white">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                  </button>
+                  <h3 className="text-white text-2xl font-black tracking-tight">Sleep timer</h3>
+                  <div className="w-8" />
+                </div>
+
+                <div className="flex-1 w-full flex flex-col justify-center gap-8">
+                  {/* Horizontal Presets */}
+                  <div className="w-full overflow-x-auto scrollbar-hide flex gap-3 pb-4">
+                    {[5, 10, 15, 30, 45, 60, 90, 120].map(mins => (
+                      <button
+                        key={mins}
+                        onClick={() => {
+                          setSleepTimer(mins * 60);
+                        }}
+                        className={`flex-shrink-0 px-6 py-3 rounded-2xl font-bold transition-all ${sleepTimer === mins * 60 ? 'bg-donezo-green text-white shadow-lg shadow-donezo-green/20' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                      >
+                        {mins}m
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setSleepTimer(null)}
+                      className={`flex-shrink-0 px-6 py-3 rounded-2xl font-bold transition-all ${sleepTimer === null ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-red-500/40 hover:bg-red-500/10'}`}
+                    >
+                      Off
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center gap-12">
+                    <div className="flex flex-col gap-4">
+                      <h4 className="text-white/60 text-sm font-bold uppercase tracking-widest text-center">Hours</h4>
+                      <ScrollPicker 
+                        options={Array.from({ length: 25 }, (_, i) => i)}
+                        value={sleepTimer ? Math.floor(sleepTimer / 3600) : 0}
+                        onChange={(val) => {
+                          const currentMins = sleepTimer ? Math.floor((sleepTimer % 3600) / 60) : 0;
+                          setSleepTimer(Number(val) * 3600 + currentMins * 60);
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      <h4 className="text-white/60 text-sm font-bold uppercase tracking-widest text-center">Minutes</h4>
+                      <ScrollPicker 
+                        options={Array.from({ length: 60 }, (_, i) => i)}
+                        value={sleepTimer ? Math.floor((sleepTimer % 3600) / 60) : 0}
+                        onChange={(val) => {
+                          const currentHours = sleepTimer ? Math.floor(sleepTimer / 3600) : 0;
+                          setSleepTimer(currentHours * 3600 + Number(val) * 60);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowSleepTimer(false)}
+                  className="mt-auto w-16 h-16 bg-[#00A3FF] rounded-2xl flex items-center justify-center shadow-lg shadow-[#00A3FF]/40 mb-8"
+                >
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Loop Editor Overlay (Drum Picker) */}
+            {isEditingLoop && (
+              <div className="absolute inset-0 z-[60] bg-[#121418] p-6 animate-fade-in flex flex-col items-center">
+                <div className="w-full flex justify-between items-center mb-4">
+                  <button onClick={() => setIsEditingLoop(false)} className="text-white/40 hover:text-white">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  <h3 className="text-white text-xl font-bold">Edit loop points</h3>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => {
+                        setLoopA(null);
+                        setLoopB(null);
+                        setIsLooping(false);
+                      }}
+                      className="text-white/40 hover:text-white"
+                      title="Clear Loop"
+                    >
+                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full text-center mb-4">
+                  <span className="text-white/60 font-mono text-sm">{formatTime(currentTime)}</span>
+                </div>
+
+                {/* Mini Waveform in Loop Editor */}
+                <div className="w-full h-16 bg-white/5 rounded-xl overflow-hidden mb-8 relative">
+                   <div className="absolute inset-0 flex items-center justify-center gap-[1px]">
+                      {waveformData.slice(0, 100).map((val, i) => (
+                        <div key={i} className="w-[2px] bg-white/20" style={{ height: `${val * 100}%` }} />
+                      ))}
+                   </div>
+                   <div className="absolute top-0 bottom-0 border-2 border-[#00A3FF] w-12 left-1/2 -translate-x-1/2 rounded-md" />
+                </div>
+
+                <div className="flex-1 w-full flex flex-col gap-8">
+                  {/* Loop A Picker */}
+                  <div className="flex items-center justify-center gap-8">
+                    <span className="text-white font-bold text-xl w-8">A</span>
+                    <div className="flex items-center gap-2">
+                      <ScrollPicker 
+                        options={Array.from({ length: Math.floor(duration / 60) + 1 }, (_, i) => i)}
+                        value={loopA !== null ? Math.floor(loopA / 60) : 0}
+                        onChange={(val) => {
+                          const currentSecs = loopA !== null ? loopA % 60 : 0;
+                          setLoopA(Number(val) * 60 + currentSecs);
+                        }}
+                      />
+                      <span className="text-white/40 font-bold">:</span>
+                      <ScrollPicker 
+                        options={Array.from({ length: 60 }, (_, i) => i)}
+                        value={loopA !== null ? Math.floor(loopA % 60) : 0}
+                        onChange={(val) => {
+                          const currentMins = loopA !== null ? Math.floor(loopA / 60) : 0;
+                          setLoopA(currentMins * 60 + Number(val));
+                        }}
+                      />
+                      <span className="text-white/40 font-bold">.</span>
+                      <ScrollPicker 
+                        options={Array.from({ length: 1000 }, (_, i) => i)}
+                        value={loopA !== null ? Math.floor((loopA % 1) * 1000) : 0}
+                        onChange={(val) => {
+                          const currentTotalSecs = loopA !== null ? Math.floor(loopA) : 0;
+                          setLoopA(currentTotalSecs + Number(val) / 1000);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="h-px w-full bg-white/5" />
+
+                  {/* Loop B Picker */}
+                  <div className="flex items-center justify-center gap-8">
+                    <span className="text-white font-bold text-xl w-8">B</span>
+                    <div className="flex items-center gap-2">
+                      <ScrollPicker 
+                        options={Array.from({ length: Math.floor(duration / 60) + 1 }, (_, i) => i)}
+                        value={loopB !== null ? Math.floor(loopB / 60) : 0}
+                        onChange={(val) => {
+                          const currentSecs = loopB !== null ? loopB % 60 : 0;
+                          setLoopB(Number(val) * 60 + currentSecs);
+                        }}
+                      />
+                      <span className="text-white/40 font-bold">:</span>
+                      <ScrollPicker 
+                        options={Array.from({ length: 60 }, (_, i) => i)}
+                        value={loopB !== null ? Math.floor(loopB % 60) : 0}
+                        onChange={(val) => {
+                          const currentMins = loopB !== null ? Math.floor(loopB / 60) : 0;
+                          setLoopB(currentMins * 60 + Number(val));
+                        }}
+                      />
+                      <span className="text-white/40 font-bold">.</span>
+                      <ScrollPicker 
+                        options={Array.from({ length: 1000 }, (_, i) => i)}
+                        value={loopB !== null ? Math.floor((loopB % 1) * 1000) : 0}
+                        onChange={(val) => {
+                          const currentTotalSecs = loopB !== null ? Math.floor(loopB) : 0;
+                          setLoopB(currentTotalSecs + Number(val) / 1000);
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-auto w-full flex gap-4 mb-4">
+                   <button 
+                    onClick={() => setIsEditingLoop(false)}
+                    className="flex-1 py-4 bg-[#00A3FF] text-white font-bold rounded-2xl shadow-lg shadow-[#00A3FF]/20"
+                   >
+                     Done
                    </button>
                 </div>
               </div>
@@ -973,71 +1348,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                   </div>
                 </div>
 
-                {/* Loop Editor UI */}
-                {isEditingLoop && (
-                  <div className="bg-white/5 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
-                    <div className="flex-1 flex flex-col gap-2">
-                      <label className="text-[10px] text-white/50 font-bold uppercase tracking-widest text-center">Start (A)</label>
-                      <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-1">
-                        <button onClick={() => setLoopA(Math.max(0, (loopA || 0) - 0.1))} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">-</button>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          min="0" 
-                          max={loopB || duration}
-                          value={loopA !== null ? loopA.toFixed(2) : ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!isNaN(val)) setLoopA(Math.max(0, Math.min(loopB || duration, val)));
-                          }}
-                          className="w-16 bg-transparent text-center text-white text-sm font-mono focus:outline-none"
-                          placeholder="0.00"
-                        />
-                        <button onClick={() => setLoopA(Math.min(loopB || duration, (loopA || 0) + 0.1))} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">+</button>
-                      </div>
-                    </div>
-                    
-                    <div className="w-px h-10 bg-white/10"></div>
-
-                    <div className="flex-1 flex flex-col gap-2">
-                      <label className="text-[10px] text-white/50 font-bold uppercase tracking-widest text-center">End (B)</label>
-                      <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-xl p-1">
-                        <button onClick={() => {
-                          const newVal = Math.max(loopA || 0, (loopB || duration) - 0.1);
-                          setLoopB(newVal);
-                          if (loopA !== null) setIsLooping(true);
-                        }} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">-</button>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          min={loopA || 0} 
-                          max={duration}
-                          value={loopB !== null ? loopB.toFixed(2) : ''}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (!isNaN(val)) {
-                              setLoopB(Math.max(loopA || 0, Math.min(duration, val)));
-                              if (loopA !== null) setIsLooping(true);
-                            }
-                          }}
-                          className="w-16 bg-transparent text-center text-white text-sm font-mono focus:outline-none"
-                          placeholder="0.00"
-                        />
-                        <button onClick={() => {
-                          const newVal = Math.min(duration, (loopB || duration) + 0.1);
-                          setLoopB(newVal);
-                          if (loopA !== null) setIsLooping(true);
-                        }} className="w-8 h-8 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors">+</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Loop Editor UI (Removed as it's now an overlay) */}
               </div>
             </div>
 
             {/* Waveform Visualizer */}
             <div 
-              className="relative w-full flex-1 min-h-[250px] bg-black rounded-3xl overflow-hidden shadow-inner border border-white/5 cursor-pointer group flex-shrink-0 touch-none"
+              className="relative w-full flex-1 min-h-0 bg-black rounded-3xl overflow-hidden shadow-inner border border-white/5 cursor-pointer group flex-shrink touch-auto"
               onMouseDown={handleWaveformMouseDown}
               onMouseMove={handleWaveformMouseMove}
               onMouseUp={handleWaveformMouseUp}
@@ -1055,8 +1372,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                 <div className="w-px h-full bg-white/10"></div>
               </div>
 
-              <button className="absolute top-4 right-4 p-2 bg-white/5 rounded-lg text-[#00A3FF] hover:bg-white/10 transition-colors pointer-events-none">
-                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 3-2 3 2zm0 0v-8" /></svg>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addBookmark();
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/5 rounded-lg text-[#00A3FF] hover:bg-white/10 transition-colors z-20"
+                title="Add Bookmark"
+              >
+                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
               </button>
               {/* Tooltip on hover */}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[10px] text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1065,9 +1389,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
             </div>
 
             {/* Seeker & Playback Controls */}
-            <div className="space-y-4 md:space-y-6 flex-shrink-0">
+            <div className="space-y-3 md:space-y-4 flex-shrink-0">
               {/* Seek Slider */}
-              <div className="space-y-2 md:space-y-4">
+              <div className="space-y-1 md:space-y-2">
                 <div className="relative h-6 md:h-8 flex items-center">
                   <div className="absolute w-full h-2 bg-white/10 rounded-full"></div>
                   <div ref={fsProgressRef} className="absolute h-2 bg-white/40 rounded-full" style={{ width: `${(currentTime / duration) * 100}%` }}></div>
@@ -1085,11 +1409,11 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                   />
                   <div 
                     ref={fsHandleRef}
-                    className="absolute w-8 h-4 md:w-12 md:h-6 bg-white rounded-full shadow-lg pointer-events-none"
-                    style={{ left: `calc(${(currentTime / duration) * 100}% - ${windowWidth < 768 ? 16 : 24}px)` }}
+                    className="absolute w-8 h-4 md:w-10 md:h-5 bg-white rounded-full shadow-lg pointer-events-none"
+                    style={{ left: `calc(${(currentTime / duration) * 100}% - ${windowWidth < 768 ? 16 : 20}px)` }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-sm md:text-lg font-medium text-white">
+                <div className="flex justify-between text-xs md:text-sm font-medium text-white">
                   <span ref={fsTimeLabelRef}>{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span>
                   <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
                 </div>
@@ -1099,24 +1423,24 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
               <div className="flex items-center justify-between px-0 md:px-4">
                 <button 
                   onClick={toggleShuffle}
-                  className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all ${isShuffle ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'bg-[#00A3FF]/10 text-[#00A3FF] hover:bg-[#00A3FF]/20'}`}
+                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${isShuffle ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'bg-[#00A3FF]/10 text-[#00A3FF] hover:bg-[#00A3FF]/20'}`}
                   title="Shuffle"
                 >
-                  <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                   </svg>
                 </button>
                 
-                <div className="flex items-center gap-2 md:gap-8">
+                <div className="flex items-center gap-2 md:gap-6">
                   <button className="text-[#00A3FF] hover:scale-110 transition-transform opacity-50 cursor-not-allowed hidden sm:block" title="Previous Track">
-                    <svg className="w-8 h-8 md:w-10 md:h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                    <svg className="w-8 h-8 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
                   </button>
                   <button onClick={skipBackward} className="text-[#00A3FF] hover:scale-110 transition-transform" title="Rewind 10s">
-                    <svg className="w-8 h-8 md:w-10 md:h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                    <svg className="w-8 h-8 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
                   </button>
                   <button 
                     onClick={handleTogglePlay}
-                    className="relative w-16 h-16 md:w-20 md:h-20 text-[#00A3FF] hover:scale-110 transition-transform"
+                    className="relative w-16 h-16 md:w-16 md:h-16 text-[#00A3FF] hover:scale-110 transition-transform"
                   >
                     <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isPlaying ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-90'}`}>
                       <svg className="w-full h-full" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -1126,32 +1450,32 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
                     </div>
                   </button>
                   <button onClick={skipForward} className="text-[#00A3FF] hover:scale-110 transition-transform" title="Forward 10s">
-                    <svg className="w-8 h-8 md:w-10 md:h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M13 6v12l8.5-6L13 6zM4 6v12l8.5-6L4 6z"/></svg>
+                    <svg className="w-8 h-8 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M13 6v12l8.5-6L13 6zM4 6v12l8.5-6L4 6z"/></svg>
                   </button>
                   <button className="text-[#00A3FF] hover:scale-110 transition-transform opacity-50 cursor-not-allowed hidden sm:block" title="Next Track">
-                    <svg className="w-8 h-8 md:w-10 md:h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    <svg className="w-8 h-8 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
                   </button>
                 </div>
 
                 <button 
                   onClick={toggleRepeat}
-                  className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all ${repeatMode !== 'off' ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'bg-[#00A3FF]/10 text-[#00A3FF] hover:bg-[#00A3FF]/20'}`}
+                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${repeatMode !== 'off' ? 'bg-[#00A3FF] text-white shadow-lg shadow-[#00A3FF]/20' : 'bg-[#00A3FF]/10 text-[#00A3FF] hover:bg-[#00A3FF]/20'}`}
                   title="Repeat"
                 >
                   {repeatMode === 'one' ? (
                     <div className="relative flex items-center justify-center w-full h-full">
-                      <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[8px] md:text-[10px] font-bold pt-0.5">1</span>
+                      <svg className="w-5 h-5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-[8px] md:text-[9px] font-bold pt-0.5">1</span>
                     </div>
                   ) : (
-                    <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    <svg className="w-5 h-5 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                   )}
                 </button>
               </div>
 
               {/* Footer: Playing Next */}
-              <div className="flex items-center justify-center gap-3 text-[#00A3FF] font-medium text-sm md:text-base">
-                <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
+              <div className="flex items-center justify-center gap-2 text-[#00A3FF] font-medium text-xs md:text-sm">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
                 <span className="truncate max-w-[250px]">Playing Next: {currentTrack.title}</span>
               </div>
             </div>

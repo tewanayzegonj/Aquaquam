@@ -1,0 +1,204 @@
+47:    <div className="flex flex-col items-center">
+49:      <div className="relative h-[120px] w-16 overflow-hidden">
+50:        <div className="absolute inset-0 pointer-events-none z-10">
+51:          <div className="h-[40px] bg-gradient-to-b from-black to-transparent opacity-80" />
+52:          <div className="h-[40px] mt-[40px] border-y border-white/20" />
+53:          <div className="h-[40px] bg-gradient-to-t from-black to-transparent opacity-80" />
+54:        </div>
+55:        <div 
+62:            <div 
+67:            </div>
+69:        </div>
+70:      </div>
+71:    </div>
+786:            <div className="w-full max-w-lg h-full flex flex-col bg-player-bg shadow-2xl relative overflow-hidden">
+789:              <div className="w-full flex justify-center pt-2 md:pt-4 flex-shrink-0 cursor-grab active:cursor-grabbing">
+790:                <div className="w-12 h-1 bg-player-text/20 rounded-full"></div>
+791:              </div>
+794:          <div className="px-4 md:px-8 py-4 md:py-6 flex items-center justify-between flex-shrink-0">
+795:            <div className="flex items-center gap-4">
+797:            </div>
+798:            <div className="flex items-center gap-4 md:gap-6 text-white/80">
+842:            </div>
+843:          </div>
+846:          <div className="flex-1 flex flex-col px-4 md:px-8 gap-2 md:gap-4 overflow-y-auto scrollbar-hide w-full relative pb-2 md:pb-4">
+849:            <div className="space-y-1 text-center md:text-left flex-shrink-0 pt-2 min-h-[60px] flex flex-col justify-center">
+851:                <div className="flex items-center justify-center animate-pulse w-full relative">
+852:                  <div className="flex-1"></div>
+853:                  <div className="bg-donezo-green/10 border border-donezo-green/30 px-4 py-1 rounded-xl text-donezo-green text-2xl md:text-3xl font-black tracking-tighter font-mono shadow-lg shadow-donezo-green/5">
+855:                  </div>
+856:                  <div className="flex-1 flex justify-start pl-3">
+864:                  </div>
+865:                </div>
+868:                  <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
+873:                  </div>
+879:            </div>
+883:              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6 md:gap-8" ref={settingsRef}>
+884:                <div className="flex justify-between items-center">
+889:                </div>
+891:                <div className="space-y-6 md:space-y-8">
+893:                  <div className="space-y-3">
+894:                    <div className="flex justify-between items-center">
+897:                    </div>
+898:                    <div className="grid grid-cols-5 gap-2">
+908:                    </div>
+909:                  </div>
+912:                  <div className="space-y-3">
+913:                    <div className="flex justify-between items-center">
+916:                    </div>
+917:                    <div className="grid grid-cols-6 gap-2">
+927:                    </div>
+928:                  </div>
+931:                  <div className="space-y-3">
+932:                    <div className="flex justify-between items-center">
+935:                    </div>
+945:                  </div>
+946:                </div>
+948:                <div className="mt-auto flex flex-col gap-3">
+959:                </div>
+960:              </div>
+965:              <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col gap-6" ref={bookmarksRef}>
+966:                <div className="flex justify-between items-center">
+971:                </div>
+972:                <div className="flex-1 overflow-y-auto space-y-3 scrollbar-hide">
+974:                    <div className="h-full flex flex-col items-center justify-center text-white/20 gap-4">
+979:                    </div>
+982:                      <div key={bm.id} className="bg-white/5 rounded-2xl p-4 flex items-center justify-between group">
+984:                          <div className="flex-1 flex items-center gap-2">
+1003:                          </div>
+1016:                            <div className="flex items-center gap-1">
+1034:                            </div>
+1037:                      </div>
+1040:                </div>
+1041:              </div>
+1046:              <div className="absolute inset-0 z-[60] bg-black/95 backdrop-blur-xl p-6 md:p-10 animate-fade-in flex flex-col items-center">
+1047:                <div className="w-full flex justify-between items-center mb-8">
+1052:                  <div className="w-8" />
+1053:                </div>
+1055:                <div className="flex-1 w-full flex flex-col justify-center gap-8">
+1057:                  <div className="w-full overflow-x-auto scrollbar-hide flex gap-3 pb-4">
+1075:                  </div>
+1077:                  <div className="flex justify-center gap-12">
+1078:                    <div className="flex flex-col gap-4">
+1088:                    </div>
+1090:                    <div className="flex flex-col gap-4">
+1100:                    </div>
+1101:                  </div>
+1102:                </div>
+1112:              </div>
+1117:              <div className="absolute inset-0 z-[60] bg-[#121418] p-6 animate-fade-in flex flex-col items-center">
+1118:                <div className="w-full flex justify-between items-center mb-4">
+1123:                  <div className="flex gap-4">
+1134:                  </div>
+1135:                </div>
+1137:                <div className="w-full text-center mb-4">
+1139:                </div>
+1142:                <div className="w-full h-16 bg-white/5 rounded-xl overflow-hidden mb-8 relative">
+1143:                   <div className="absolute inset-0 flex items-center justify-between px-1">
+1145:                        <div key={i} className="w-[2px] bg-white/20" style={{ height: `${val * 100}%` }} />
+1147:                   </div>
+1149:                     <div 
+1157:                </div>
+1159:                <div className="flex-1 w-full flex flex-col gap-8">
+1161:                  <div className="flex items-center justify-center gap-8">
+1163:                    <div className="flex items-center gap-2">
+1190:                    </div>
+1191:                  </div>
+1193:                  <div className="h-px w-full bg-white/5" />
+1196:                  <div className="flex items-center justify-center gap-8">
+1198:                    <div className="flex items-center gap-2">
+1225:                    </div>
+1226:                  </div>
+1227:                </div>
+1229:                <div className="mt-auto w-full flex flex-col gap-4 mb-4">
+1241:                </div>
+1242:              </div>
+1246:            <div className="space-y-4 md:space-y-6 flex-shrink-0">
+1248:              <div className="space-y-1 md:space-y-2">
+1249:                <div className="flex justify-between items-center">
+1251:                  <div className="flex items-center gap-2">
+1256:                  </div>
+1257:                </div>
+1258:                <div className="flex items-center gap-3">
+1265:                  <div className="relative flex-1 h-4 md:h-6 flex items-center">
+1266:                    <div className="absolute w-full h-1 bg-white/10 rounded-full"></div>
+1267:                    <div className="absolute h-1 bg-[#00A3FF] rounded-full" style={{ width: `${((tempo - 50) / 150) * 100}%` }}></div>
+1276:                    <div 
+1279:                    ></div>
+1280:                  </div>
+1287:                </div>
+1288:              </div>
+1291:              <div className="space-y-1 md:space-y-2">
+1292:                <div className="flex justify-between items-center">
+1294:                  <div className="flex items-center gap-2">
+1306:                  </div>
+1307:                </div>
+1308:                <div className="flex items-center gap-3">
+1315:                  <div className="relative flex-1 h-4 md:h-6 flex items-center">
+1316:                    <div className="absolute w-full h-1 bg-white/10 rounded-full" />
+1317:                    <div 
+1330:                    <div 
+1334:                  </div>
+1341:                </div>
+1342:              </div>
+1345:              <div className="flex flex-col gap-3">
+1346:                <div className="flex items-center justify-between">
+1348:                  <div className="flex items-center gap-2 md:gap-3">
+1388:                  </div>
+1389:                </div>
+1392:              </div>
+1393:            </div>
+1396:            <div 
+1411:              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+1412:                <div className="w-px h-full bg-white/10"></div>
+1413:              </div>
+1426:              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[10px] text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
+1428:              </div>
+1429:            </div>
+1432:            <div className="space-y-3 md:space-y-4 flex-shrink-0 px-4 md:px-8">
+1434:              <div className="space-y-1 md:space-y-2">
+1435:                <div className="relative h-6 md:h-8 flex items-center">
+1436:                  <div className="absolute w-full h-2 bg-white/10 rounded-full"></div>
+1437:                  <div ref={fsProgressRef} className="absolute h-2 bg-[#00A3FF] rounded-full" style={{ width: `${(currentTime / duration) * 100}%` }}></div>
+1450:                  <div 
+1454:                  ></div>
+1455:                </div>
+1456:                <div className="flex justify-between text-xs md:text-sm font-medium text-white">
+1459:                </div>
+1460:              </div>
+1463:              <div className="flex items-center justify-between px-0 md:px-4">
+1474:                <div className="flex items-center gap-2 md:gap-6">
+1485:                    <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isPlaying ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-90'}`}>
+1487:                    </div>
+1488:                    <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${!isPlaying ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-90'}`}>
+1490:                    </div>
+1492:                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-donezo-green rounded-full border-2 border-black flex items-center justify-center animate-pulse z-10">
+1494:                      </div>
+1503:                </div>
+1511:                    <div className="relative flex items-center justify-center w-full h-full">
+1514:                    </div>
+1519:              </div>
+1522:              <div className="flex items-center justify-center gap-2 text-[#00A3FF] font-medium text-xs md:text-sm">
+1525:              </div>
+1526:            </div>
+1527:          </div>
+1533:      <div className={`fixed bottom-0 right-0 bg-player-bg/80 text-player-text border-t border-amber-500/30 backdrop-blur-xl transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
+1552:        <div className="absolute bottom-0 left-0 right-0 h-24 bg-black/20 backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-10">
+1555:          <div 
+1559:             <div className="w-10 h-10 lg:w-14 lg:h-14 bg-player-panel rounded-lg lg:rounded-xl flex items-center justify-center text-player-muted flex-shrink-0 group-hover:bg-player-accent group-hover:text-white transition-all">
+1561:             </div>
+1562:             <div className="min-w-0 overflow-hidden">
+1563:                 <div className="whitespace-nowrap animate-marquee group-hover:pause">
+1566:                 </div>
+1568:             </div>
+1569:          </div>
+1572:          <div className="flex flex-col items-center flex-1 max-w-xl px-2">
+1573:             <div className="flex items-center gap-4 lg:gap-6 mb-2">
+1590:             </div>
+1592:             <div className="w-full flex items-center gap-3 text-xs text-player-muted font-mono">
+1608:             </div>
+1609:          </div>
+1612:          <div className="flex justify-end items-center gap-2 lg:gap-4 lg:w-1/4">
+1634:          </div>
+1635:        </div>
+1636:      </div>

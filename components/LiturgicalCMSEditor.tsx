@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ETHIOPIAN_MONTHS_GEEZ } from '../utils/ethiopianDate';
+import { canonicalMonthlyCommemorations } from '../utils/liturgyData';
 
 interface LiturgicalCMSEditorProps {
   onClose: () => void;
@@ -115,12 +116,12 @@ const LiturgicalCMSEditor: React.FC<LiturgicalCMSEditorProps> = ({ onClose }) =>
                       type="text" 
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="bg-black/50 border border-amber-500/50 rounded-lg px-2 py-1 text-white outline-none font-sans"
-                      placeholder="System Default"
+                      className="bg-black/50 border border-amber-500/50 rounded-lg px-2 py-1 text-white outline-none font-sans placeholder-white/20"
+                      placeholder={canonicalMonthlyCommemorations[day]?.amharic || "System Default"}
                     />
                   ) : (
                     <span className={`font-sans ${monthlyCustom[day] ? 'text-white' : 'text-white/30 italic'}`}>
-                      {monthlyCustom[day] || "System Default"}
+                      {monthlyCustom[day] || canonicalMonthlyCommemorations[day]?.amharic || "System Default"}
                     </span>
                   )}
                 </div>

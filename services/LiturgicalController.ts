@@ -7,7 +7,7 @@ import {
   ETHIOPIAN_MONTHS_GEEZ
 } from '../utils/ethiopianDate';
 import { FIXED_FEASTS } from '../data/fixed_feasts';
-import { MONTHLY_RECURRING } from '../data/monthly_recurring';
+import { canonicalMonthlyCommemorations } from '../utils/liturgyData';
 import { BahireHasab } from 'abushakir';
 
 export interface Ceremony {
@@ -111,10 +111,10 @@ export class LiturgicalController {
                 geezWeekName = movableFeast.beal;
             } else {
                 // Priority 4: Monthly Recurring (Default)
-                const monthly = MONTHLY_RECURRING.find(m => m.day === ethDate.day);
+                const monthly = canonicalMonthlyCommemorations[ethDate.day];
                 if (monthly) {
-                    weekName = monthly.name;
-                    geezWeekName = monthly.geez;
+                    weekName = monthly.english;
+                    geezWeekName = monthly.amharic;
                     season = "Monthly Commemoration";
                 }
             }

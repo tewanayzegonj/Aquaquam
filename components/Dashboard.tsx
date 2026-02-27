@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
                 {currentCeremony.geezName}
               </h2>
               <p className="text-amber-100 text-lg font-medium max-w-xl mb-6">
-                {currentCeremony.name} • {currentCeremony.season}
+                {currentCeremony.weekName} • {currentCeremony.season === 'Monthly Commemoration' ? 'Monthly' : currentCeremony.season}
               </p>
 
               {/* Tagged Folders List */}

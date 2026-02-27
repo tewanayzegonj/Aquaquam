@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import * as Tone from 'tone';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import useOnClickOutside from '../hooks/useOnClickOutside';
 
 interface AudioPlayerProps {
@@ -1512,14 +1513,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
       </div>
 
       {/* Mini Player */}
-      <div className={`fixed bottom-0 right-0 bg-player-bg text-player-text border-t border-player-border transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
+      <div className={`fixed bottom-0 right-0 bg-player-bg/80 text-player-text border-t border-amber-500/30 backdrop-blur-xl transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
         
         {/* Waveform Canvas - Always visible */}
         <canvas 
           ref={miniCanvasRef} 
           width={windowWidth} 
           height={isExpanded ? 384 : 96}
-          className="absolute inset-0 w-full h-full block opacity-40 pointer-events-none"
+          className="absolute inset-0 w-full h-full block opacity-20 pointer-events-none"
         />
 
         {/* Expanded View Close Button */}
@@ -1531,18 +1532,21 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         </button>
 
         {/* Main Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-player-bg/30 backdrop-blur-md border-t border-white/5 flex items-center justify-between px-4 md:px-6 z-10">
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-black/20 backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-10">
           
           {/* Track Info */}
           <div 
-            className="flex items-center gap-3 lg:gap-4 w-auto max-w-[35%] lg:w-1/4 min-w-0 cursor-pointer group"
+            className="flex items-center gap-3 lg:gap-4 w-auto max-w-[40%] lg:w-1/3 min-w-0 cursor-pointer group"
             onClick={() => setIsFullScreen(true)}
           >
              <div className="w-10 h-10 lg:w-14 lg:h-14 bg-player-panel rounded-lg lg:rounded-xl flex items-center justify-center text-player-muted flex-shrink-0 group-hover:bg-player-accent group-hover:text-white transition-all">
                 <svg className="w-6 h-6 lg:w-8 lg:h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
              </div>
-             <div className="min-w-0">
-                 <h3 className="font-bold text-xs lg:text-sm truncate group-hover:text-player-accent transition-colors">{currentTrack.title}</h3>
+             <div className="min-w-0 overflow-hidden">
+                 <div className="whitespace-nowrap animate-marquee group-hover:pause">
+                    <h3 className="font-bold text-xs lg:text-sm inline-block mr-8 group-hover:text-player-accent transition-colors">{currentTrack.title}</h3>
+                    <h3 className="font-bold text-xs lg:text-sm inline-block mr-8 group-hover:text-player-accent transition-colors">{currentTrack.title}</h3>
+                 </div>
                  <p className="text-[10px] lg:text-xs text-player-muted truncate">{currentTrack.category}</p>
              </div>
           </div>
@@ -1620,9 +1624,18 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
          onTimeUpdate={handleTimeUpdate}
          onLoadedMetadata={handleLoadedMetadata}
          onEnded={() => {
-             if ((repeatMode === 'one' || (sleepTimer !== null && sleepTimer > 0)) && audioRef.current) {
-                 audioRef.current.currentTime = 0;
-                 audioRef.current.play();
+             if (repeatMode === 'one' || repeatMode === 'all') {
+                 if (audioRef.current) {
+                     audioRef.current.currentTime = 0;
+                     audioRef.current.play();
+                 }
+             } else {
+                 if (audioRef.current) {
+                     audioRef.current.currentTime = 0;
+                 }
+                 if (isPlaying) {
+                     onTogglePlay();
+                 }
              }
          }}
       />

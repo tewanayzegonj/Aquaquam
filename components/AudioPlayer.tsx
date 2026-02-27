@@ -535,7 +535,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
   const tick = useCallback(function animate() {
     try {
         const isFS = isFullScreenRef.current;
-        const isExp = isExpandedRef.current;
         
         // Stop animation if neither view is active
         // If isFS is false, we are in mini player mode (collapsed or expanded), so we should animate

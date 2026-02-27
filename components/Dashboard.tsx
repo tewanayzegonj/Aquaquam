@@ -1,20 +1,93 @@
-import React from 'react';
-import { Track } from '../types';
+import React, { useMemo } from 'react';
+import { Track, Category, LibraryItem } from '../types';
+import { LiturgicalController } from '../services/LiturgicalController';
+import { toEthiopian, getWazemaAdjustedDate } from '../utils/ethiopianDate';
+import { motion } from 'framer-motion';
 
 interface DashboardProps {
   currentTrack: Track | null;
   recentlyPlayed: Track[];
   favorites: Track[];
+  libraryItems: LibraryItem[];
   onPlay: (track: Track) => void;
   onToggleFavorite: (track: Track) => void;
+  onSelectCategory: (category: Category) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, favorites, onPlay, onToggleFavorite }) => {
+const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, favorites, libraryItems, onPlay, onToggleFavorite, onSelectCategory }) => {
   const recentFive = recentlyPlayed.slice(0, 5);
   const favoriteTen = favorites.slice(0, 10);
 
+  const currentCeremony = useMemo(() => LiturgicalController.getCurrentCeremony(), []);
+  
+  // Find tagged items for today
+  const todaysItems = useMemo(() => {
+      const now = new Date();
+      const adjusted = getWazemaAdjustedDate(now);
+      const ethDate = toEthiopian(adjusted);
+      
+      return libraryItems.filter(item => 
+          item.liturgicalMetadata?.month === ethDate.month && 
+          item.liturgicalMetadata?.day === ethDate.day
+      );
+  }, [libraryItems]);
+
   return (
-    <div className="p-6 md:p-10 space-y-12 animate-fade-in pb-32 max-w-7xl mx-auto">
+    <motion.div 
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="p-6 md:p-10 space-y-12 pb-32 max-w-7xl mx-auto"
+    >
+       {/* Today's Ceremony Card */}
+       <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-amber-500 to-orange-600 dark:from-amber-900/40 dark:to-orange-900/40 border border-amber-500/20 shadow-2xl shadow-amber-500/10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+          
+          <div className="relative z-10 p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-3 py-1 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                  Today's Liturgy
+                </span>
+                <span className="text-amber-100 font-medium text-sm">
+                  {currentCeremony.dateString}
+                </span>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-black text-white font-serif tracking-tight mb-2">
+                {currentCeremony.geezName}
+              </h2>
+              <p className="text-amber-100 text-lg font-medium max-w-xl mb-6">
+                {currentCeremony.name} • {currentCeremony.season}
+              </p>
+
+              {/* Tagged Folders List */}
+              {todaysItems.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-4">
+                      {todaysItems.map(item => (
+                          <button 
+                            key={item.id}
+                            onClick={() => onSelectCategory(item.categoryId)} // Ideally navigate to folder, but category is a start
+                            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border border-white/10"
+                          >
+                              <svg className="w-4 h-4 opacity-70" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                              {item.name}
+                          </button>
+                      ))}
+                  </div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => onSelectCategory('Calendar')}
+              className="px-6 py-3 bg-white text-amber-600 rounded-xl font-bold hover:bg-amber-50 transition-colors shadow-lg shadow-black/5 flex items-center gap-2 group flex-shrink-0"
+            >
+              <span>Open Full Calendar</span>
+              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            </button>
+          </div>
+       </section>
+
        {/* Hero Section: Playing Now */}
        <section className="relative group">
           <div className="hidden md:flex items-center justify-between mb-6">
@@ -164,7 +237,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
              )}
           </section>
        </div>
-    </div>
+    </motion.div>
   );
 };
 

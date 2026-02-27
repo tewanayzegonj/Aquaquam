@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Category, DayData, NavItemType } from '../types';
+import { LiturgicalController } from '../services/LiturgicalController';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -203,6 +204,39 @@ const Sidebar: React.FC<SidebarProps> = ({
              Dashboard
            </span>
         </button>
+
+        <button 
+          onClick={() => { onSelectCategory('Calendar'); setIsEditing(false); setIsAdding(false); setShowCollapsedAdd(false); }}
+          className={`w-full flex items-center gap-4 px-3 py-3 rounded-xl transition-all ${selectedCategory === 'Calendar' ? 'bg-slate-900 dark:bg-white text-white dark:text-black shadow-lg shadow-black/10' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+        >
+           <div className={`w-6 h-6 flex items-center justify-center flex-shrink-0`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+           </div>
+           <span className={`font-medium whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+             Calendar
+           </span>
+        </button>
+
+        {/* Liturgical Widget */}
+        <div className={`mt-2 mb-4 px-1 transition-all duration-300 ${isCollapsed ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100 h-auto'}`}>
+          <button 
+            onClick={() => onSelectCategory('Calendar')}
+            className="w-full bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/10 border border-amber-100 dark:border-amber-900/30 rounded-2xl p-4 text-left group hover:shadow-md transition-all relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-amber-200/20 to-transparent rounded-bl-full pointer-events-none"></div>
+            
+            <p className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-400 tracking-widest mb-1">
+              {LiturgicalController.getCurrentCeremony().dateString}
+            </p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white font-serif tracking-tight group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+              {LiturgicalController.getCurrentCeremony().geezName}
+            </h3>
+            <div className="flex items-center gap-2 mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              {LiturgicalController.getCurrentCeremony().weekName}
+            </div>
+          </button>
+        </div>
 
         <div className={`my-4 border-b border-slate-100 dark:border-slate-800 ${isCollapsed ? 'mx-2' : 'mx-0'}`}></div>
 

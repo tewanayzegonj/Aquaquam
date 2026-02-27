@@ -8,6 +8,7 @@ import AuthView from './components/AuthView.tsx';
 
 const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
 const LibraryView = lazy(() => import('./components/LibraryView.tsx'));
+const LiturgicalCalendarView = lazy(() => import('./components/LiturgicalCalendarView.tsx'));
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -17,7 +18,6 @@ const App: React.FC = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   
-  // Enforce Permanent Dark Mode
   useEffect(() => {
     document.documentElement.classList.add('dark');
   }, []);
@@ -40,6 +40,7 @@ const App: React.FC = () => {
   });
   
   const [selectedCategory, setSelectedCategory] = useState<Category | 'Dashboard'>('Dashboard');
+  const [initialFolderId, setInitialFolderId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -218,6 +219,25 @@ const App: React.FC = () => {
     return <AuthView onLogin={handleLogin} />;
   }
 
+  const handleCalendarItemClick = (item: LibraryItem) => {
+    if (item.type === 'folder') {
+      setSelectedCategory(item.categoryId);
+      setInitialFolderId(item.id);
+    } else if (item.type === 'audio') {
+      const track: Track = {
+        id: item.id,
+        title: item.name,
+        category: 'Imported',
+        audio_url: item.url || '',
+        available_performances: [PerformanceType.Zema],
+        merigeta_metadata: { notes: "Imported from local device" },
+        size: item.size,
+        duration: item.duration
+      };
+      handlePlayTrack(track);
+    }
+  };
+
   const renderContent = () => {
     if (selectedCategory === 'Dashboard') {
       return (
@@ -226,8 +246,21 @@ const App: React.FC = () => {
             currentTrack={currentTrack}
             recentlyPlayed={recentlyPlayed}
             favorites={favorites}
+            libraryItems={libraryItems}
             onPlay={handlePlayTrack}
             onToggleFavorite={toggleFavorite}
+            onSelectCategory={setSelectedCategory}
+          />
+        </Suspense>
+      );
+    }
+
+    if (selectedCategory === 'Calendar') {
+      return (
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-green"></div></div>}>
+          <LiturgicalCalendarView 
+            libraryItems={libraryItems} 
+            onItemClick={handleCalendarItemClick}
           />
         </Suspense>
       );
@@ -236,6 +269,7 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-donezo-green"></div></div>}>
         <LibraryView 
+          key={selectedCategory}
           categoryId={selectedCategory}
           items={libraryItems}
           favorites={favorites}
@@ -246,6 +280,7 @@ const App: React.FC = () => {
           onPlayTrack={handlePlayTrack}
           onToggleFavorite={toggleFavorite}
           currentTrackId={currentTrack?.id}
+          initialFolderId={initialFolderId}
         />
       </Suspense>
     );
@@ -267,6 +302,7 @@ const App: React.FC = () => {
         selectedCategory={selectedCategory as Category}
         onSelectCategory={(cat) => { 
           setSelectedCategory(cat); 
+          setInitialFolderId(null);
           setIsSidebarCollapsed(true); 
         }}
         onSelectDay={setSelectedDay}

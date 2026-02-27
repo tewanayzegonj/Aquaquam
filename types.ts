@@ -90,6 +90,11 @@ export interface LibraryItem {
   scriptureReference?: string;
   composer?: string;
   historicalContext?: string;
+  liturgicalMetadata?: {
+    month: number;
+    day: number;
+    ceremony?: string;
+  };
 }
 
 export interface User {

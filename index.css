@@ -1,4 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;600;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --color-donezo-green: var(--accent-primary);
@@ -21,6 +24,7 @@
   --color-player-panel: var(--player-panel);
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-ethiopic: "Noto Sans Ethiopic", sans-serif;
   --font-serif: "Playfair Display", "Georgia", serif;
 
   --animate-fade-in: fadeIn 0.3s ease-in-out;
@@ -51,6 +55,9 @@
     --bg-primary: #09090b;
     --bg-card: #18181b;
     --bg-cream: #27272a;
+    --bg-dark: #09090b;
+    --bg-card-dark: #18181b;
+    --bg-dark-alt: #000000;
     
     --accent-primary: #059669; /* Emerald for dark mode */
     --accent-warm: #d97706;

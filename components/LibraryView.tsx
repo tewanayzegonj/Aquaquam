@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { LibraryItem, Track, PerformanceType } from '../types';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import LiturgicalAssignmentModal from './LiturgicalAssignmentModal';
+import FolderSelectionModal from './FolderSelectionModal';
 
 import useOnClickOutside from '../hooks/useOnClickOutside';
 
@@ -15,6 +16,7 @@ interface LibraryViewProps {
   onPlayTrack: (track: Track) => void;
   onToggleFavorite: (track: Track) => void;
   currentTrackId?: string;
+  initialFolderId?: string | null;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -29,9 +31,17 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   onReorderItems,
   onPlayTrack,
   onToggleFavorite,
-  currentTrackId 
+  currentTrackId,
+  initialFolderId
 }) => {
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId || null);
+
+  React.useEffect(() => {
+    if (initialFolderId !== undefined) {
+      setCurrentFolderId(initialFolderId);
+    }
+  }, [initialFolderId]);
+
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   
   const [isAddingFolder, setIsAddingFolder] = useState(false);
@@ -42,20 +52,33 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [itemToDelete, setItemToDelete] = useState<LibraryItem | null>(null);
+  
+  // Survey / Liturgical Assignment State
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [pendingItem, setPendingItem] = useState<LibraryItem | null>(null);
+  
+  // Smart Ingestion State
+  const [isFolderSelectOpen, setIsFolderSelectOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<LibraryItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const parentRef = useRef<HTMLDivElement>(null);
 
-  const currentItems = useMemo(() => items.filter(item => 
-    item.categoryId === categoryId && item.parentId === currentFolderId
-  ), [items, categoryId, currentFolderId]);
+  const currentItems = useMemo(() => {
+    // 1. Filter by category and parent
+    const filtered = items.filter(item => 
+      item.categoryId === categoryId && 
+      item.parentId === currentFolderId &&
+      item.id !== currentFolderId // Prevent recursion
+    );
+    
+    // 2. Deduplicate by ID (Fix for duplication bug)
+    const uniqueItems = Array.from(new Set(filtered.map(i => i.id)))
+        .map(id => filtered.find(i => i.id === id)!);
+        
+    return uniqueItems;
+  }, [items, categoryId, currentFolderId]);
 
-  const rowVirtualizer = useVirtualizer({
-    count: currentItems.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => viewMode === 'list' ? 88 : 216,
-    lanes: viewMode === 'list' ? 1 : (typeof window !== 'undefined' && window.innerWidth >= 1536 ? 8 : window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 4 : window.innerWidth >= 640 ? 3 : 2),
-  });
+  const allFolders = useMemo(() => items.filter(i => i.type === 'folder'), [items]);
 
   const handleToggleFavorite = (e: React.MouseEvent, item: LibraryItem) => {
     e.stopPropagation();
@@ -74,15 +97,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
   };
   const newFolderFormRef = useRef<HTMLFormElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const manageMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setIsAddingFolder(false);
-    setNewFolderName("");
-    setIsManageMode(false);
-    setSelectedIds([]);
-    setEditingItemId(null);
-  }, [categoryId]);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
 
   const getBreadcrumbs = () => {
     const crumbs = [];
@@ -124,7 +139,11 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       type: 'folder',
       createdAt: Date.now()
     };
-    onAddItem(newFolder);
+    
+    // Trigger Survey
+    setPendingItem(newFolder);
+    setIsSurveyOpen(true);
+    
     setNewFolderName("");
     setIsAddingFolder(false);
   };
@@ -155,8 +174,12 @@ const LibraryView: React.FC<LibraryViewProps> = ({
     }
   });
 
-  // Removed useOnClickOutside for manageMenuRef to prevent closing when selecting items
-  // The user can manually toggle manage mode off using the button
+  useOnClickOutside(mainContainerRef, () => {
+    if (isManageMode) {
+      setIsManageMode(false);
+      setSelectedIds([]);
+    }
+  });
 
   const handleToggleSelect = (id: string) => {
       setSelectedIds(prev => 
@@ -211,7 +234,10 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             size: file.size,
             duration: tempAudio.duration
           };
-          onAddItem(newFile);
+          
+          // Trigger Smart Ingestion: Assign to Folder
+          setPendingFile(newFile);
+          setIsFolderSelectOpen(true);
       };
 
       // Fallback if metadata fails (e.g., immediate trigger without duration)
@@ -227,9 +253,40 @@ const LibraryView: React.FC<LibraryViewProps> = ({
             size: file.size,
             duration: 0
          };
-         onAddItem(newFile);
+         
+         // Trigger Smart Ingestion: Assign to Folder
+         setPendingFile(newFile);
+         setIsFolderSelectOpen(true);
       }
     }
+  };
+
+  const handleFolderSelect = (folderId: string | null) => {
+      if (pendingFile) {
+          const fileToAdd = { ...pendingFile, parentId: folderId };
+          onAddItem(fileToAdd);
+          setPendingFile(null);
+          setIsFolderSelectOpen(false);
+      }
+  };
+
+  const handleCreateNewFolderFromModal = (name: string) => {
+      // 1. Create Folder Object
+      const newFolder: LibraryItem = {
+          id: `folder_${Date.now()}`,
+          parentId: currentFolderId, // Create in current view context
+          categoryId,
+          name,
+          type: 'folder',
+          createdAt: Date.now()
+      };
+      
+      // 2. Set as pending item for Liturgical Survey
+      setPendingItem(newFolder);
+      
+      // 3. Close folder select, open survey
+      setIsFolderSelectOpen(false);
+      setIsSurveyOpen(true);
   };
 
   const handleAddDemoTrack = () => {
@@ -292,9 +349,82 @@ const LibraryView: React.FC<LibraryViewProps> = ({
       }
   };
 
+  const handleSurveyConfirm = (month: number, day: number, ceremony?: string) => {
+    if (pendingItem) {
+        const itemWithMetadata: LibraryItem = {
+            ...pendingItem,
+            liturgicalMetadata: {
+                month,
+                day,
+                ceremony
+            }
+        };
+        onAddItem(itemWithMetadata);
+        
+        // If we have a pending file waiting for this new folder
+        if (pendingFile) {
+            const fileToAdd = { ...pendingFile, parentId: itemWithMetadata.id };
+            onAddItem(fileToAdd);
+            setPendingFile(null);
+        }
+    } else if (isManageMode && selectedIds.length > 0) {
+        // Map to Day Logic
+        selectedIds.forEach(id => {
+            onUpdateItem(id, {
+                liturgicalMetadata: { month, day, ceremony }
+            });
+        });
+        setSelectedIds([]);
+        setIsManageMode(false);
+    }
+    
+    setPendingItem(null);
+    setIsSurveyOpen(false);
+  };
+
+  const handleMapToDay = () => {
+      if (selectedIds.length === 0) return;
+      // Trigger survey for selected items
+      setIsSurveyOpen(true);
+      // We don't set pendingItem, we use selectedIds in handleSurveyConfirm
+  };
+
   return (
-    <div className="p-6 md:p-10 h-full flex flex-col relative">
+    <div ref={mainContainerRef} className="p-6 md:p-10 h-full flex flex-col relative">
       
+      {isSurveyOpen && (
+        <LiturgicalAssignmentModal 
+          isOpen={isSurveyOpen}
+          onClose={() => {
+              // If skipped
+              if (pendingItem) {
+                  onAddItem(pendingItem);
+                  if (pendingFile) {
+                      // If folder creation skipped metadata, still add file to it
+                      const fileToAdd = { ...pendingFile, parentId: pendingItem.id };
+                      onAddItem(fileToAdd);
+                      setPendingFile(null);
+                  }
+              }
+              setPendingItem(null);
+              setIsSurveyOpen(false);
+          }}
+          onConfirm={handleSurveyConfirm}
+          itemName={pendingItem?.name || (selectedIds.length > 0 ? `${selectedIds.length} Items` : 'Item')}
+        />
+      )}
+
+      <FolderSelectionModal 
+        isOpen={isFolderSelectOpen}
+        onClose={() => {
+            setIsFolderSelectOpen(false);
+            setPendingFile(null);
+        }}
+        folders={allFolders}
+        onSelectFolder={handleFolderSelect}
+        onCreateNewFolder={handleCreateNewFolderFromModal}
+      />
+
       {(itemToDelete || itemsToDelete.length > 0) && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setItemToDelete(null); setItemsToDelete([]); }}></div>
@@ -365,7 +495,7 @@ const LibraryView: React.FC<LibraryViewProps> = ({
            <div className="hidden md:block h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
 
            {/* Manage Mode Toggle */}
-           <div className="flex items-center gap-2" ref={manageMenuRef}>
+           <div className="flex items-center gap-2">
              <button 
                   onClick={() => {
                     setIsManageMode(!isManageMode);
@@ -386,12 +516,21 @@ const LibraryView: React.FC<LibraryViewProps> = ({
                    {selectedIds.length === currentItems.length ? 'Deselect All' : 'Select All'}
                  </button>
                  {selectedIds.length > 0 && (
-                   <button 
-                    onClick={handleDeleteSelected}
-                    className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-                   >
-                     Delete ({selectedIds.length})
-                   </button>
+                   <>
+                    <button 
+                        onClick={handleMapToDay}
+                        className="px-3 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 flex items-center gap-1"
+                    >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        Map to Day
+                    </button>
+                    <button 
+                        onClick={handleDeleteSelected}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                    >
+                        Delete ({selectedIds.length})
+                    </button>
+                   </>
                  )}
                </div>
              )}

@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LiturgicalController } from '../services/LiturgicalController';
 import { toEthiopian, ETHIOPIAN_MONTHS_GEEZ, toGeezNumber } from '../utils/ethiopianDate';
@@ -11,7 +12,7 @@ interface LiturgicalCalendarViewProps {
   onItemClick?: (item: LibraryItem) => void;
 }
 
-const LiturgicalCalendarView: React.FC<LiturgicalCalendarViewProps> = ({ libraryItems = [], onItemClick }) => {
+export default function LiturgicalCalendarView({ libraryItems = [], onItemClick }: LiturgicalCalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -186,7 +187,6 @@ const LiturgicalCalendarView: React.FC<LiturgicalCalendarViewProps> = ({ library
         <div 
             className="overflow-visible custom-scrollbar p-2 md:p-8 w-full max-w-[100vw] overflow-x-hidden box-border"
         >
-            {/* Days Grid with Animation */}
             <AnimatePresence mode='wait' initial={false}>
                 {calendarData && calendarData.days && (
                     <motion.div
@@ -227,12 +227,17 @@ const LiturgicalCalendarView: React.FC<LiturgicalCalendarViewProps> = ({ library
                                 `}
                             >
                                 <div className="flex w-full justify-between items-start relative z-10">
-                                    <span 
-                                        className={`font-black font-sans ${isSelected ? 'text-white' : 'text-white/80'}`}
-                                        style={{ fontSize: 'clamp(0.8rem, 2.5vw, 1.5rem)' }}
-                                    >
-                                        {showGeezNumerals ? toGeezNumber(dayData.day) : dayData.day}
-                                    </span>
+                                    <div className="flex flex-col">
+                                        <span 
+                                            className={`font-black font-sans ${isSelected ? 'text-white' : 'text-white/80'}`}
+                                            style={{ fontSize: 'clamp(0.8rem, 2.5vw, 1.5rem)' }}
+                                        >
+                                            {showGeezNumerals ? toGeezNumber(dayData.day) : dayData.day}
+                                        </span>
+                                        <span className={`text-[10px] font-bold uppercase tracking-tighter ${isSelected ? 'text-white/60' : 'text-white/30'}`}>
+                                            {dayData.ceremony.geezDayName}
+                                        </span>
+                                    </div>
                                     <div className="flex gap-1">
                                         {/* Gold Dot: Official Ceremony */}
                                         {dayData.ceremony.season !== 'Regular' && dayData.ceremony.season !== 'Monthly Commemoration' && (
@@ -275,7 +280,7 @@ const LiturgicalCalendarView: React.FC<LiturgicalCalendarViewProps> = ({ library
             <div className="p-6 md:p-8 border-b border-white/5 flex-shrink-0">
                 <p className="text-amber-500 text-xs font-bold uppercase tracking-widest mb-2 font-sans">Selected Liturgy</p>
                 <h2 className="text-2xl md:text-3xl font-black font-sans text-white mb-1">
-                    {selectedCeremony?.dateString}
+                    {selectedCeremony?.geezDayName} • {selectedCeremony?.dateString}
                 </h2>
                 <p className="text-white/60 text-base md:text-lg font-medium font-sans">
                     {selectedCustomCeremony ? selectedCustomCeremony.name : selectedCeremony?.geezName}
@@ -463,6 +468,4 @@ const LiturgicalCalendarView: React.FC<LiturgicalCalendarViewProps> = ({ library
         />
     </div>
   );
-};
-
-export default LiturgicalCalendarView;
+}

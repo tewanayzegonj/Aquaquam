@@ -1,4 +1,4 @@
-import React from 'react';
+import * as React from 'react';
 import { ETHIOPIAN_MONTHS_GEEZ } from '../utils/ethiopianDate';
 
 interface MonthYearPickerProps {
@@ -9,13 +9,13 @@ interface MonthYearPickerProps {
   onSelect: (month: number, year: number) => void;
 }
 
-const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
+export default function MonthYearPicker({
   isOpen,
   onClose,
   currentMonth,
   currentYear,
   onSelect
-}) => {
+}: MonthYearPickerProps) {
   if (!isOpen) return null;
 
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
@@ -66,6 +66,4 @@ const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
       </div>
     </div>
   );
-};
-
-export default MonthYearPicker;
+}

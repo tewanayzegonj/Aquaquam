@@ -4,7 +4,9 @@ import {
   isZemeneTsige, 
   getWazemaAdjustedDate,
   ETHIOPIAN_MONTHS,
-  ETHIOPIAN_MONTHS_GEEZ
+  ETHIOPIAN_MONTHS_GEEZ,
+  getDayName,
+  getGeezDayName
 } from '../utils/ethiopianDate';
 import { FIXED_FEASTS } from '../data/fixed_feasts';
 import { canonicalMonthlyCommemorations } from '../utils/liturgyData';
@@ -15,6 +17,8 @@ export interface Ceremony {
   geezName: string;
   folderPath: string;
   dateString: string;
+  dayName: string;
+  geezDayName: string;
   weekName: string;
   season: string;
   weeklyTheme?: string;
@@ -127,12 +131,16 @@ export class LiturgicalController {
 
     // 6. Date String
     const dateString = `${ETHIOPIAN_MONTHS_GEEZ[ethDate.month - 1]} ${ethDate.day}, ${ethDate.year}`;
+    const dayName = getDayName(adjustedDate);
+    const geezDayName = getGeezDayName(adjustedDate);
 
     return {
       name: `${weekName} - ${season}`,
       geezName: geezWeekName,
       folderPath,
       dateString,
+      dayName,
+      geezDayName,
       weekName,
       season
     };

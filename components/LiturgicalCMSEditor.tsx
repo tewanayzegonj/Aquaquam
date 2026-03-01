@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
 import { ETHIOPIAN_MONTHS_GEEZ } from '../utils/ethiopianDate';
 import { canonicalMonthlyCommemorations } from '../utils/liturgyData';
 
@@ -6,7 +7,7 @@ interface LiturgicalCMSEditorProps {
   onClose: () => void;
 }
 
-const LiturgicalCMSEditor: React.FC<LiturgicalCMSEditorProps> = ({ onClose }) => {
+export default function LiturgicalCMSEditor({ onClose }: LiturgicalCMSEditorProps) {
   const [activeTab, setActiveTab] = useState<'monthly' | 'annual'>('monthly');
   
   const [monthlyCustom, setMonthlyCustom] = useState<Record<string, string>>(() => {
@@ -117,11 +118,11 @@ const LiturgicalCMSEditor: React.FC<LiturgicalCMSEditorProps> = ({ onClose }) =>
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       className="bg-black/50 border border-amber-500/50 rounded-lg px-2 py-1 text-white outline-none font-sans placeholder-white/20"
-                      placeholder={canonicalMonthlyCommemorations[day]?.amharic || "System Default"}
+                      placeholder={canonicalMonthlyCommemorations[day]?.amharic}
                     />
                   ) : (
                     <span className={`font-sans ${monthlyCustom[day] ? 'text-white' : 'text-white/30 italic'}`}>
-                      {monthlyCustom[day] || canonicalMonthlyCommemorations[day]?.amharic || "System Default"}
+                      {monthlyCustom[day] || canonicalMonthlyCommemorations[day]?.amharic}
                     </span>
                   )}
                 </div>
@@ -230,6 +231,4 @@ const LiturgicalCMSEditor: React.FC<LiturgicalCMSEditorProps> = ({ onClose }) =>
       )}
     </div>
   );
-};
-
-export default LiturgicalCMSEditor;
+}

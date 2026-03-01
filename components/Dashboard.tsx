@@ -51,14 +51,17 @@ const Dashboard: React.FC<DashboardProps> = ({ currentTrack, recentlyPlayed, fav
                   Today's Liturgy
                 </span>
                 <span className="text-amber-100 font-medium text-sm">
-                  {currentCeremony.dateString}
+                  {currentCeremony.geezDayName} • {currentCeremony.dateString}
                 </span>
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-white font-serif tracking-tight mb-2">
                 {currentCeremony.geezName}
               </h2>
               <p className="text-amber-100 text-lg font-medium max-w-xl mb-6">
-                {currentCeremony.weekName} • {currentCeremony.season === 'Monthly Commemoration' ? 'Monthly' : currentCeremony.season}
+                {currentCeremony.weekName}
+                {currentCeremony.season !== 'Regular' && !currentCeremony.weekName.includes('Commemoration') && (
+                  <> • {currentCeremony.season === 'Monthly Commemoration' ? 'Monthly' : currentCeremony.season}</>
+                )}
               </p>
 
               {/* Tagged Folders List */}

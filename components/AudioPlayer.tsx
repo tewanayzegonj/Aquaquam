@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import * as Tone from 'tone';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion } from 'framer-motion';
 import useOnClickOutside from '../hooks/useOnClickOutside';
 
 interface AudioPlayerProps {
@@ -9,6 +9,8 @@ interface AudioPlayerProps {
   onTogglePlay: () => void;
   onClose: () => void;
   isSidebarCollapsed: boolean;
+  queue?: Track[];
+  onNext?: () => void;
 }
 
 interface ExtendedAudioElement extends HTMLAudioElement {
@@ -72,7 +74,7 @@ const ScrollPicker: React.FC<{
   );
 };
 
-const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTogglePlay, onClose, isSidebarCollapsed }) => {
+const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTogglePlay, onClose, isSidebarCollapsed, queue = [], onNext }) => {
   const audioRef = useRef<ExtendedAudioElement>(null);
   const fullScreenCanvasRef = useRef<HTMLCanvasElement>(null);
   const miniCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -770,9 +772,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
         <div className="w-full max-w-lg h-full flex flex-col bg-player-bg shadow-2xl relative overflow-hidden">
           
           {/* Drag Handle */}
-          <div className="w-full flex justify-center pt-2 md:pt-4 flex-shrink-0">
+          <motion.div 
+            className="w-full flex justify-center pt-2 md:pt-4 flex-shrink-0 cursor-grab active:cursor-grabbing"
+            onPan={(e, info) => {
+              if (info.offset.y > 100) {
+                setIsFullScreen(false);
+              }
+            }}
+          >
             <div className="w-12 h-1 bg-player-text/20 rounded-full"></div>
-          </div>
+          </motion.div>
 
           {/* Header */}
           <div className="px-4 md:px-8 py-4 md:py-6 flex items-center justify-between flex-shrink-0">
@@ -1513,7 +1522,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
       </div>
 
       {/* Mini Player */}
-      <div className={`fixed bottom-0 right-0 bg-player-bg/80 text-player-text border-t border-amber-500/30 backdrop-blur-xl transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
+      <div className={`fixed bottom-0 right-0 bg-[#0A0A0A]/80 text-player-text border-t border-amber-500/30 backdrop-blur-[12px] transition-all duration-300 z-50 ${isExpanded ? 'h-96' : 'h-24'} ${isSidebarCollapsed ? 'left-0 lg:left-20' : 'left-0 lg:left-72'}`}>
         
         {/* Waveform Canvas - Always visible */}
         <canvas 
@@ -1624,11 +1633,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ currentTrack, isPlaying, onTo
          onTimeUpdate={handleTimeUpdate}
          onLoadedMetadata={handleLoadedMetadata}
          onEnded={() => {
-             if (repeatMode === 'one' || repeatMode === 'all') {
+             if (repeatMode === 'one') {
                  if (audioRef.current) {
                      audioRef.current.currentTime = 0;
                      audioRef.current.play();
                  }
+             } else if (onNext && (queue.length > 0 || repeatMode === 'all')) {
+                 onNext();
              } else {
                  if (audioRef.current) {
                      audioRef.current.currentTime = 0;

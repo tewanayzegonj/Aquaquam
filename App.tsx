@@ -1,16 +1,17 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import * as React from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { MOCK_DB, DEFAULT_CATEGORIES } from './constants';
-import { Category, DayData, Track, NavItemType, LibraryItem, User } from './types';
-import AudioPlayer from './components/AudioPlayer.tsx';
-import Sidebar from './components/Sidebar.tsx';
-import Header from './components/Header.tsx';
-import AuthView from './components/AuthView.tsx';
+import { Category, DayData, Track, NavItemType, LibraryItem, User, PerformanceType } from './types';
+import AudioPlayer from './components/AudioPlayer';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import AuthView from './components/AuthView';
 
-const Dashboard = lazy(() => import('./components/Dashboard.tsx'));
-const LibraryView = lazy(() => import('./components/LibraryView.tsx'));
-const LiturgicalCalendarView = lazy(() => import('./components/LiturgicalCalendarView.tsx'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const LibraryView = lazy(() => import('./components/LibraryView'));
+const LiturgicalCalendarView = lazy(() => import('./components/LiturgicalCalendarView'));
 
-const App: React.FC = () => {
+export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('zema_session');
     return saved ? JSON.parse(saved) : null;
@@ -44,6 +45,7 @@ const App: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [queue, setQueue] = useState<Track[]>([]);
   
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>(() => {
     const saved = localStorage.getItem('eotc_recent');
@@ -118,15 +120,36 @@ const App: React.FC = () => {
     localStorage.removeItem('zema_session');
   };
 
-  const handlePlayTrack = (track: Track) => {
+  const handlePlayTrack = (track: Track, tracks?: Track[]) => {
     if (currentTrack?.id !== track.id) {
       setCurrentTrack(track);
+      if (tracks) {
+        const index = tracks.findIndex(t => t.id === track.id);
+        if (index !== -1) {
+          setQueue(tracks.slice(index + 1));
+        }
+      }
       setRecentlyPlayed(prev => {
         const filtered = prev.filter(t => t.id !== track.id);
         return [track, ...filtered].slice(0, 10);
       });
     }
     setIsPlaying(true);
+  };
+
+  const handleNextTrack = () => {
+    if (queue.length > 0) {
+      const nextTrack = queue[0];
+      setCurrentTrack(nextTrack);
+      setQueue(prev => prev.slice(1));
+      setRecentlyPlayed(prev => {
+        const filtered = prev.filter(t => t.id !== nextTrack.id);
+        return [nextTrack, ...filtered].slice(0, 10);
+      });
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
   };
   
   const handleClosePlayer = () => {
@@ -339,9 +362,9 @@ const App: React.FC = () => {
         onTogglePlay={() => setIsPlaying(!isPlaying)} 
         onClose={handleClosePlayer}
         isSidebarCollapsed={isSidebarCollapsed}
+        queue={queue}
+        onNext={handleNextTrack}
       />
     </div>
   );
-};
-
-export default App;
+}
